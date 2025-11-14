@@ -29,19 +29,25 @@ if (!class_exists(\EspTheme\Logic\MaintenanceService::class)) {
     require_once $baseDir . '/logic/MaintenanceService.php';
 }
 
-$maintenanceService = new \EspTheme\Logic\MaintenanceService();
+$serviceClass = \EspTheme\Logic\MaintenanceService::class;
+
+if (!app()->bound($serviceClass)) {
+    app()->singleton($serviceClass, function () use ($serviceClass) {
+        return new $serviceClass();
+    });
+}
 
 /**
  * Ensure maintenance artisan commands are available in both web and console contexts.
  */
-(function () use ($maintenanceService) {
+(function () use ($serviceClass) {
     static $commandsRegistered = false;
     if ($commandsRegistered) {
         return;
     }
 
     $commands = [
-        new \EspTheme\Logic\Commands\MaintenanceCheckCommand($maintenanceService),
+        new \EspTheme\Logic\Commands\MaintenanceCheckCommand(app($serviceClass)),
         new \EspTheme\Logic\Commands\MaintenanceMigrateCommand(),
     ];
 
@@ -80,21 +86,22 @@ $maintenanceService = new \EspTheme\Logic\MaintenanceService();
     $commandsRegistered = true;
 })();
 
-Theme::listen(ThemeEvents::APP_BOOT, function () use ($maintenanceService) {
+Theme::listen(ThemeEvents::APP_BOOT, function () use ($serviceClass) {
     Lang::addNamespace('esp', __DIR__ . '/lang');
 
-    View::composer('layouts.parts.header', function ($view) use ($maintenanceService) {
+    View::composer('layouts.parts.header', function ($view) use ($serviceClass) {
         $user = user();
         if ($user && !$user->isGuest()) {
-            $view->with('espMaintenanceHeader', $maintenanceService->getHeaderSummaryForUser($user));
+            $view->with('espMaintenanceHeader', app($serviceClass)->getHeaderSummaryForUser($user));
         }
     });
 
-    View::composer('pages.show', function ($view) use ($maintenanceService) {
+    View::composer('pages.show', function ($view) use ($serviceClass) {
         $page = $view->getData()['page'] ?? null;
         if ($page instanceof Page) {
-            $view->with('espMaintenanceRecord', $maintenanceService->getMaintenanceForPage($page));
-            $view->with('espMaintenanceService', $maintenanceService);
+            $service = app($serviceClass);
+            $view->with('espMaintenanceRecord', $service->getMaintenanceForPage($page));
+            $view->with('espMaintenanceService', $service);
             if (user()->hasSystemRole('admin')) {
                 $view->with('espMaintenanceUserOptions', User::query()->orderBy('name')->get());
             }
@@ -102,15 +109,15 @@ Theme::listen(ThemeEvents::APP_BOOT, function () use ($maintenanceService) {
     });
 });
 
-Theme::listen(ThemeEvents::ROUTES_REGISTER_WEB_AUTH, function (Router $router) use ($maintenanceService) {
-    $controller = new \EspTheme\Logic\MaintenanceController($maintenanceService);
+Theme::listen(ThemeEvents::ROUTES_REGISTER_WEB_AUTH, function (Router $router) {
+    $controller = '\\EspTheme\\Logic\\MaintenanceController';
 
     $router->group(['prefix' => 'maintenance'], function () use ($router, $controller) {
-        $router->get('tasks', [$controller, 'listTasks'])->name('maintenance.tasks');
-        $router->post('assign/{page}', [$controller, 'assign'])->name('maintenance.assign');
-        $router->post('start/{page}', [$controller, 'startUpdate'])->name('maintenance.start');
-        $router->post('submit/{page}', [$controller, 'submitReview'])->name('maintenance.submit');
-        $router->post('approve/{page}', [$controller, 'approve'])->name('maintenance.approve');
-        $router->post('reject/{page}', [$controller, 'reject'])->name('maintenance.reject');
+        $router->get('tasks', $controller . '@listTasks')->name('maintenance.tasks');
+        $router->post('assign/{page}', $controller . '@assign')->name('maintenance.assign');
+        $router->post('start/{page}', $controller . '@startUpdate')->name('maintenance.start');
+        $router->post('submit/{page}', $controller . '@submitReview')->name('maintenance.submit');
+        $router->post('approve/{page}', $controller . '@approve')->name('maintenance.approve');
+        $router->post('reject/{page}', $controller . '@reject')->name('maintenance.reject');
     });
 });
