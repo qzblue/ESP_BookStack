@@ -2,7 +2,7 @@
 
 namespace EspTheme\Logic\Commands;
 
-use BookStack\Auth\User as BookStackUser;
+use BookStack\Users\Models\User as BookStackUser;
 use BookStack\Entities\Models\Page;
 use Illuminate\Console\Command;
 use Illuminate\Database\Schema\Blueprint;
