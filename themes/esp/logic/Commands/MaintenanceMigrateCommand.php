@@ -20,14 +20,23 @@ class MaintenanceMigrateCommand extends Command
 
         Schema::create('page_maintenances', function (Blueprint $table) {
             $table->bigIncrements('id');
-            $table->foreignId('page_id')->constrained('pages')->cascadeOnDelete();
-            $table->foreignId('maintainer_user_id')->constrained('users');
+            $table->unsignedInteger('page_id');
+            $table->unsignedInteger('maintainer_user_id');
             $table->integer('period_days');
             $table->dateTime('next_due_at');
             $table->dateTime('last_reviewed_at')->nullable();
             $table->string('status', 32);
             $table->text('last_rejected_reason')->nullable();
             $table->timestamps();
+
+            $table->foreign('page_id')
+                ->references('id')
+                ->on('pages')
+                ->cascadeOnDelete();
+
+            $table->foreign('maintainer_user_id')
+                ->references('id')
+                ->on('users');
         });
 
         $this->info('page_maintenances table created successfully.');
