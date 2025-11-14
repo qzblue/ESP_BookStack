@@ -14,9 +14,9 @@ use Illuminate\Support\Facades\View;
 $baseDir = __DIR__;
 
 spl_autoload_register(function (string $class) use ($baseDir) {
-    $prefix = 'EspTheme\\';
-    if (str_starts_with($class, $prefix)) {
-        $relative = substr($class, strlen($prefix));
+    $logicPrefix = 'EspTheme\\Logic\\';
+    if (str_starts_with($class, $logicPrefix)) {
+        $relative = substr($class, strlen($logicPrefix));
         $relativePath = str_replace('\\', DIRECTORY_SEPARATOR, $relative);
         $file = $baseDir . '/logic/' . $relativePath . '.php';
         if (file_exists($file)) {
