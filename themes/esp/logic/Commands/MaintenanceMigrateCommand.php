@@ -62,7 +62,8 @@ class MaintenanceMigrateCommand extends Command
         $connection = Schema::getConnection();
         $prefixedTable = $connection->getTablePrefix() . $table;
 
-        $columnData = DB::selectOne("SHOW COLUMNS FROM `{$prefixedTable}` LIKE ?", [$column]);
+        $likeValue = str_replace("'", "''", $column);
+        $columnData = DB::selectOne("SHOW COLUMNS FROM `{$prefixedTable}` LIKE '{$likeValue}'");
 
         if (!$columnData || !property_exists($columnData, 'Type')) {
             return false;
