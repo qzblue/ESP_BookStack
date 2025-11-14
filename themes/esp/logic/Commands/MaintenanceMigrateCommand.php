@@ -19,6 +19,11 @@ class MaintenanceMigrateCommand extends Command
             return self::SUCCESS;
         }
 
+        if (!Schema::hasTable('pages') || !Schema::hasTable('users')) {
+            $this->error('Core tables not found. Run the standard BookStack migrations before provisioning maintenance tables.');
+            return self::FAILURE;
+        }
+
         $usesBigPageIds = $this->columnUsesBigInteger('pages', 'id');
         $usesBigUserIds = $this->columnUsesBigInteger('users', 'id');
 
