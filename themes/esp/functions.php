@@ -15,7 +15,7 @@ $baseDir = __DIR__;
 
 spl_autoload_register(function (string $class) use ($baseDir) {
     $logicPrefix = 'EspTheme\\Logic\\';
-    if (str_starts_with($class, $logicPrefix)) {
+    if (strncmp($class, $logicPrefix, strlen($logicPrefix)) === 0) {
         $relative = substr($class, strlen($logicPrefix));
         $relativePath = str_replace('\\', DIRECTORY_SEPARATOR, $relative);
         $file = $baseDir . '/logic/' . $relativePath . '.php';
@@ -24,6 +24,10 @@ spl_autoload_register(function (string $class) use ($baseDir) {
         }
     }
 });
+
+if (!class_exists(\EspTheme\Logic\MaintenanceService::class)) {
+    require_once $baseDir . '/logic/MaintenanceService.php';
+}
 
 $maintenanceService = new \EspTheme\Logic\MaintenanceService();
 
