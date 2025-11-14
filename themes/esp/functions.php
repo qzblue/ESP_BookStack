@@ -5,6 +5,7 @@ use BookStack\Facades\Theme;
 use BookStack\Theming\ThemeEvents;
 use BookStack\Users\Models\User;
 use Illuminate\Console\Application as ArtisanApplication;
+use Illuminate\Contracts\Console\Kernel as ConsoleKernel;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Facades\Artisan;
@@ -26,6 +27,63 @@ spl_autoload_register(function (string $class) use ($baseDir) {
 
 $maintenanceService = new \EspTheme\Logic\MaintenanceService();
 
+/**
+ * Ensure maintenance artisan commands are available in both web and console contexts.
+ */
+(function () use ($maintenanceService) {
+    static $commandsRegistered = false;
+    if ($commandsRegistered) {
+        return;
+    }
+
+    $commands = [
+        new \EspTheme\Logic\Commands\MaintenanceCheckCommand($maintenanceService),
+        new \EspTheme\Logic\Commands\MaintenanceMigrateCommand(),
+    ];
+
+    foreach ($commands as $command) {
+        Theme::registerCommand($command);
+    }
+
+    Artisan::starting(function (ArtisanApplication $artisan) use ($commands) {
+        foreach ($commands as $command) {
+            if (!$artisan->has($command->getName())) {
+                $artisan->add($command);
+            }
+        }
+    });
+
+    if (app()->runningInConsole()) {
+        $artisan = Artisan::getFacadeRoot();
+        if ($artisan instanceof ArtisanApplication) {
+            foreach ($commands as $command) {
+                if (!$artisan->has($command->getName())) {
+                    $artisan->add($command);
+                }
+            }
+        }
+
+        app()->afterResolving(ConsoleKernel::class, function (ConsoleKernel $kernel) use ($commands) {
+            foreach ($commands as $command) {
+                if (method_exists($kernel, 'registerCommand')) {
+                    $kernel->registerCommand($command);
+                }
+            }
+        });
+
+        if (app()->resolved(ConsoleKernel::class)) {
+            $kernel = app(ConsoleKernel::class);
+            foreach ($commands as $command) {
+                if (method_exists($kernel, 'registerCommand')) {
+                    $kernel->registerCommand($command);
+                }
+            }
+        }
+    }
+
+    $commandsRegistered = true;
+})();
+
 Theme::listen(ThemeEvents::APP_BOOT, function () use ($maintenanceService) {
     Lang::addNamespace('esp', __DIR__ . '/lang');
 
@@ -46,27 +104,6 @@ Theme::listen(ThemeEvents::APP_BOOT, function () use ($maintenanceService) {
             }
         }
     });
-
-    static $commandsRegistered = false;
-    if ($commandsRegistered) {
-        return;
-    }
-
-    $registerCommand = function ($command) {
-        Theme::registerCommand($command);
-
-        if (app()->runningInConsole()) {
-            $artisan = Artisan::getFacadeRoot();
-            if ($artisan instanceof ArtisanApplication && !$artisan->has($command->getName())) {
-                $artisan->add($command);
-            }
-        }
-    };
-
-    $registerCommand(new \EspTheme\Logic\Commands\MaintenanceCheckCommand($maintenanceService));
-    $registerCommand(new \EspTheme\Logic\Commands\MaintenanceMigrateCommand());
-
-    $commandsRegistered = true;
 });
 
 Theme::listen(ThemeEvents::ROUTES_REGISTER_WEB_AUTH, function (Router $router) use ($maintenanceService) {
