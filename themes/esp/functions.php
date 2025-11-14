@@ -49,14 +49,6 @@ $maintenanceService = new \EspTheme\Logic\MaintenanceService();
         Theme::registerCommand($command);
     }
 
-    Artisan::starting(function (ArtisanApplication $artisan) use ($commands) {
-        foreach ($commands as $command) {
-            if (!$artisan->has($command->getName())) {
-                $artisan->add($command);
-            }
-        }
-    });
-
     if (app()->runningInConsole()) {
         $artisan = Artisan::getFacadeRoot();
         if ($artisan instanceof ArtisanApplication) {
