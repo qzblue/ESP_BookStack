@@ -1,0 +1,63 @@
+<?php
+
+use BookStack\Entities\Models\Page;
+use BookStack\Facades\Theme;
+use BookStack\Theming\ThemeEvents;
+use BookStack\Users\Models\User;
+use Illuminate\Routing\Router;
+use Illuminate\Support\Facades\Lang;
+use Illuminate\Support\Facades\View;
+
+$baseDir = __DIR__;
+
+spl_autoload_register(function (string $class) use ($baseDir) {
+    $prefix = 'EspTheme\\';
+    if (str_starts_with($class, $prefix)) {
+        $relative = substr($class, strlen($prefix));
+        $relativePath = str_replace('\\', DIRECTORY_SEPARATOR, $relative);
+        $file = $baseDir . '/logic/' . $relativePath . '.php';
+        if (file_exists($file)) {
+            require_once $file;
+        }
+    }
+});
+
+$maintenanceService = new \EspTheme\Logic\MaintenanceService();
+
+Theme::listen(ThemeEvents::APP_BOOT, function () use ($maintenanceService) {
+    Lang::addNamespace('esp', __DIR__ . '/lang');
+
+    View::composer('layouts.parts.header', function ($view) use ($maintenanceService) {
+        $user = user();
+        if ($user && !$user->isGuest()) {
+            $view->with('espMaintenanceHeader', $maintenanceService->getHeaderSummaryForUser($user));
+        }
+    });
+
+    View::composer('pages.show', function ($view) use ($maintenanceService) {
+        $page = $view->getData()['page'] ?? null;
+        if ($page instanceof Page) {
+            $view->with('espMaintenanceRecord', $maintenanceService->getMaintenanceForPage($page));
+            $view->with('espMaintenanceService', $maintenanceService);
+            if (user()->hasSystemRole('admin')) {
+                $view->with('espMaintenanceUserOptions', User::query()->orderBy('name')->get());
+            }
+        }
+    });
+});
+
+Theme::listen(ThemeEvents::ROUTES_REGISTER_WEB_AUTH, function (Router $router) use ($maintenanceService) {
+    $controller = new \EspTheme\Logic\MaintenanceController($maintenanceService);
+
+    $router->group(['prefix' => 'maintenance'], function () use ($router, $controller) {
+        $router->get('tasks', [$controller, 'listTasks'])->name('maintenance.tasks');
+        $router->post('assign/{page}', [$controller, 'assign'])->name('maintenance.assign');
+        $router->post('start/{page}', [$controller, 'startUpdate'])->name('maintenance.start');
+        $router->post('submit/{page}', [$controller, 'submitReview'])->name('maintenance.submit');
+        $router->post('approve/{page}', [$controller, 'approve'])->name('maintenance.approve');
+        $router->post('reject/{page}', [$controller, 'reject'])->name('maintenance.reject');
+    });
+});
+
+Theme::registerCommand(new \EspTheme\Logic\Commands\MaintenanceCheckCommand($maintenanceService));
+Theme::registerCommand(new \EspTheme\Logic\Commands\MaintenanceMigrateCommand());
