@@ -46,6 +46,27 @@ Theme::listen(ThemeEvents::APP_BOOT, function () use ($maintenanceService) {
             }
         }
     });
+
+    static $commandsRegistered = false;
+    if ($commandsRegistered) {
+        return;
+    }
+
+    $registerCommand = function ($command) {
+        Theme::registerCommand($command);
+
+        if (app()->runningInConsole()) {
+            $artisan = Artisan::getFacadeRoot();
+            if ($artisan instanceof ArtisanApplication && !$artisan->has($command->getName())) {
+                $artisan->add($command);
+            }
+        }
+    };
+
+    $registerCommand(new \EspTheme\Logic\Commands\MaintenanceCheckCommand($maintenanceService));
+    $registerCommand(new \EspTheme\Logic\Commands\MaintenanceMigrateCommand());
+
+    $commandsRegistered = true;
 });
 
 Theme::listen(ThemeEvents::ROUTES_REGISTER_WEB_AUTH, function (Router $router) use ($maintenanceService) {
@@ -60,17 +81,3 @@ Theme::listen(ThemeEvents::ROUTES_REGISTER_WEB_AUTH, function (Router $router) u
         $router->post('reject/{page}', [$controller, 'reject'])->name('maintenance.reject');
     });
 });
-
-$registerCommand = function ($command) {
-    Theme::registerCommand($command);
-
-    if (app()->runningInConsole()) {
-        $artisan = Artisan::getFacadeRoot();
-        if ($artisan instanceof ArtisanApplication && !$artisan->has($command->getName())) {
-            $artisan->add($command);
-        }
-    }
-};
-
-$registerCommand(new \EspTheme\Logic\Commands\MaintenanceCheckCommand($maintenanceService));
-$registerCommand(new \EspTheme\Logic\Commands\MaintenanceMigrateCommand());
