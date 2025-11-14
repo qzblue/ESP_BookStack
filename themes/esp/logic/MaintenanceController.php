@@ -22,7 +22,7 @@ class MaintenanceController
         $user = user();
         $tasks = $this->service->getTasksForUser($user);
 
-        return view('maintenance.tasks', [
+        return view('esp::maintenance.tasks', [
             'taskSets' => $tasks,
             'service' => $this->service,
             'canAdminister' => $this->service->userCanAdminister($user),

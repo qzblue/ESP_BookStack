@@ -88,6 +88,7 @@ if (!app()->bound($serviceClass)) {
 
 Theme::listen(ThemeEvents::APP_BOOT, function () use ($serviceClass) {
     Lang::addNamespace('esp', __DIR__ . '/lang');
+    View::addNamespace('esp', __DIR__ . '/views');
 
     View::composer('layouts.parts.header', function ($view) use ($serviceClass) {
         $user = user();

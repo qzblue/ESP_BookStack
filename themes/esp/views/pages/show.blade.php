@@ -72,7 +72,7 @@
 @stop
 
 @section('right')
-    @include('maintenance.card', [
+    @include('esp::maintenance.card', [
         'page' => $page,
         'record' => $espMaintenanceRecord ?? null,
         'service' => $espMaintenanceService ?? null,
