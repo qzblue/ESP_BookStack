@@ -4,8 +4,10 @@ use BookStack\Entities\Models\Page;
 use BookStack\Facades\Theme;
 use BookStack\Theming\ThemeEvents;
 use BookStack\Users\Models\User;
+use Illuminate\Console\Application as ArtisanApplication;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Lang;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\View;
 
 $baseDir = __DIR__;
@@ -59,5 +61,16 @@ Theme::listen(ThemeEvents::ROUTES_REGISTER_WEB_AUTH, function (Router $router) u
     });
 });
 
-Theme::registerCommand(new \EspTheme\Logic\Commands\MaintenanceCheckCommand($maintenanceService));
-Theme::registerCommand(new \EspTheme\Logic\Commands\MaintenanceMigrateCommand());
+$registerCommand = function ($command) {
+    Theme::registerCommand($command);
+
+    if (app()->runningInConsole()) {
+        $artisan = Artisan::getFacadeRoot();
+        if ($artisan instanceof ArtisanApplication && !$artisan->has($command->getName())) {
+            $artisan->add($command);
+        }
+    }
+};
+
+$registerCommand(new \EspTheme\Logic\Commands\MaintenanceCheckCommand($maintenanceService));
+$registerCommand(new \EspTheme\Logic\Commands\MaintenanceMigrateCommand());
