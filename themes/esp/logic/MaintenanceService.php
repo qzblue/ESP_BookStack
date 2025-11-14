@@ -3,6 +3,7 @@
 namespace EspTheme\Logic;
 
 use BookStack\Entities\Models\Page;
+use BookStack\Permissions\Permission;
 use BookStack\Users\Models\User;
 use EspTheme\Logic\Notifications\MaintenanceStatusNotification;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -142,7 +143,7 @@ class MaintenanceService
             ->get();
 
         $reviewTasks = collect();
-        if ($user->hasSystemRole('admin')) {
+        if ($this->userCanAdminister($user)) {
             $reviewTasks = (clone $baseQuery)
                 ->where('status', PageMaintenance::STATUS_IN_REVIEW)
                 ->orderBy('updated_at', 'desc')
@@ -157,7 +158,7 @@ class MaintenanceService
 
     public function getHeaderSummaryForUser(User $user): array
     {
-        if ($user->hasSystemRole('admin')) {
+        if ($this->userCanAdminister($user)) {
             $count = PageMaintenance::query()->where('status', PageMaintenance::STATUS_IN_REVIEW)->count();
 
             return [
@@ -286,9 +287,16 @@ class MaintenanceService
         }
     }
 
+    public function userCanAdminister(User $user): bool
+    {
+        return $user->hasSystemRole('admin')
+            || $user->can(Permission::SettingsManage->value)
+            || $user->can(Permission::UsersManage->value);
+    }
+
     protected function assertAdmin(User $user): void
     {
-        if (!$user->hasSystemRole('admin')) {
+        if (!$this->userCanAdminister($user)) {
             abort(403, 'Only administrators can perform this action');
         }
     }

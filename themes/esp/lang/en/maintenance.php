@@ -34,6 +34,7 @@ return [
         'period_days' => 'Period (days)',
         'save' => 'Save maintenance settings',
         'rejection_reason' => 'Rejection reason',
+        'choose_user' => 'Choose a user',
     ],
     'tasks' => [
         'title' => 'Maintenance tasks',

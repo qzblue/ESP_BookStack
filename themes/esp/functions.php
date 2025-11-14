@@ -102,7 +102,9 @@ Theme::listen(ThemeEvents::APP_BOOT, function () use ($serviceClass) {
             $service = app($serviceClass);
             $view->with('espMaintenanceRecord', $service->getMaintenanceForPage($page));
             $view->with('espMaintenanceService', $service);
-            if (user()->hasSystemRole('admin')) {
+            $canAdminister = $service->userCanAdminister(user());
+            $view->with('espMaintenanceCanAdminister', $canAdminister);
+            if ($canAdminister) {
                 $view->with('espMaintenanceUserOptions', User::query()->orderBy('name')->get());
             }
         }

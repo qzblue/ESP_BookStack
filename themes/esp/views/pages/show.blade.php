@@ -77,6 +77,7 @@
         'record' => $espMaintenanceRecord ?? null,
         'service' => $espMaintenanceService ?? null,
         'userOptions' => $espMaintenanceUserOptions ?? collect(),
+        'canAdminister' => $espMaintenanceCanAdminister ?? false,
     ])
     <div id="page-details" class="entity-details mb-xl">
         <h5>{{ trans('common.details') }}</h5>

@@ -83,7 +83,7 @@ class MaintenanceController
 
     protected function ensureAdmin(): void
     {
-        if (!user()->hasSystemRole('admin')) {
+        if (!$this->service->userCanAdminister(user())) {
             throw new AuthorizationException('Only administrators can perform this action');
         }
     }

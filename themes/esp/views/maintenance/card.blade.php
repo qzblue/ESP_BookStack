@@ -4,6 +4,7 @@
     $statusOptions = $service?->getStatusOptions() ?? [];
     $statusLabel = $record ? ($statusOptions[$record->status] ?? $record->status) : null;
     $userOptions = ($userOptions ?? collect());
+    $canAdminister = $canAdminister ?? false;
 @endphp
 
 <div class="entity-details maintenance-card mb-l">
@@ -64,12 +65,13 @@
     </div>
 
     <div class="mt-m">
-        @if(user()->hasSystemRole('admin'))
+        @if($canAdminister)
             <form action="{{ route('maintenance.assign', ['page' => $page->id]) }}" method="POST" class="stack gap-s mb-m">
                 @csrf
                 <div>
                     <label class="text-small text-muted">{{ trans('esp::maintenance.card.select_maintainer') }}</label>
-                    <select name="maintainer_user_id" class="outline">
+                    <select name="maintainer_user_id" class="outline" required>
+                        <option value="" @if(!$record) selected @endif>{{ trans('esp::maintenance.card.choose_user') }}</option>
                         @foreach($userOptions as $userOption)
                             <option value="{{ $userOption->id }}" @if($record && $record->maintainer_user_id === $userOption->id) selected @endif>
                                 {{ $userOption->name }}
@@ -99,7 +101,7 @@
             </form>
         @endif
 
-        @if(user()->hasSystemRole('admin') && $record && $record->status === \EspTheme\Logic\PageMaintenance::STATUS_IN_REVIEW)
+        @if($canAdminister && $record && $record->status === \EspTheme\Logic\PageMaintenance::STATUS_IN_REVIEW)
             <div class="stack gap-s">
                 <form action="{{ route('maintenance.approve', ['page' => $page->id]) }}" method="POST">
                     @csrf
