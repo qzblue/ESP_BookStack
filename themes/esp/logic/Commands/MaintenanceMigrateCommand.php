@@ -2,9 +2,10 @@
 
 namespace EspTheme\Logic\Commands;
 
+use BookStack\Auth\User as BookStackUser;
+use BookStack\Entities\Models\Page;
 use Illuminate\Console\Command;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class MaintenanceMigrateCommand extends Command
@@ -19,27 +20,18 @@ class MaintenanceMigrateCommand extends Command
             return self::SUCCESS;
         }
 
-        if (!Schema::hasTable('pages') || !Schema::hasTable('users')) {
+        $pageTable = (new Page())->getTable();
+        $userTable = (new BookStackUser())->getTable();
+
+        if (!Schema::hasTable($pageTable) || !Schema::hasTable($userTable)) {
             $this->error('Core tables not found. Run the standard BookStack migrations before provisioning maintenance tables.');
             return self::FAILURE;
         }
 
-        $usesBigPageIds = $this->columnUsesBigInteger('pages', 'id');
-        $usesBigUserIds = $this->columnUsesBigInteger('users', 'id');
-
-        Schema::create('page_maintenances', function (Blueprint $table) use ($usesBigPageIds, $usesBigUserIds) {
+        Schema::create('page_maintenances', function (Blueprint $table) use ($pageTable, $userTable) {
             $table->bigIncrements('id');
-            if ($usesBigPageIds) {
-                $table->unsignedBigInteger('page_id');
-            } else {
-                $table->unsignedInteger('page_id');
-            }
-
-            if ($usesBigUserIds) {
-                $table->unsignedBigInteger('maintainer_user_id');
-            } else {
-                $table->unsignedInteger('maintainer_user_id');
-            }
+            $table->unsignedInteger('page_id');
+            $table->unsignedInteger('maintainer_user_id');
             $table->integer('period_days');
             $table->dateTime('next_due_at');
             $table->dateTime('last_reviewed_at')->nullable();
@@ -49,31 +41,16 @@ class MaintenanceMigrateCommand extends Command
 
             $table->foreign('page_id')
                 ->references('id')
-                ->on('pages')
+                ->on($pageTable)
                 ->cascadeOnDelete();
 
             $table->foreign('maintainer_user_id')
                 ->references('id')
-                ->on('users');
+                ->on($userTable);
         });
 
         $this->info('page_maintenances table created successfully.');
 
         return self::SUCCESS;
-    }
-
-    private function columnUsesBigInteger(string $table, string $column): bool
-    {
-        $connection = Schema::getConnection();
-        $prefixedTable = $connection->getTablePrefix() . $table;
-
-        $likeValue = str_replace("'", "''", $column);
-        $columnData = DB::selectOne("SHOW COLUMNS FROM `{$prefixedTable}` LIKE '{$likeValue}'");
-
-        if (!$columnData || !property_exists($columnData, 'Type')) {
-            return false;
-        }
-
-        return str_contains(strtolower($columnData->Type), 'bigint');
     }
 }
