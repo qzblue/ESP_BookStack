@@ -4,6 +4,7 @@ namespace EspTheme\Logic\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class MaintenanceMigrateCommand extends Command
@@ -18,10 +19,22 @@ class MaintenanceMigrateCommand extends Command
             return self::SUCCESS;
         }
 
-        Schema::create('page_maintenances', function (Blueprint $table) {
+        $usesBigPageIds = $this->columnUsesBigInteger('pages', 'id');
+        $usesBigUserIds = $this->columnUsesBigInteger('users', 'id');
+
+        Schema::create('page_maintenances', function (Blueprint $table) use ($usesBigPageIds, $usesBigUserIds) {
             $table->bigIncrements('id');
-            $table->unsignedInteger('page_id');
-            $table->unsignedInteger('maintainer_user_id');
+            if ($usesBigPageIds) {
+                $table->unsignedBigInteger('page_id');
+            } else {
+                $table->unsignedInteger('page_id');
+            }
+
+            if ($usesBigUserIds) {
+                $table->unsignedBigInteger('maintainer_user_id');
+            } else {
+                $table->unsignedInteger('maintainer_user_id');
+            }
             $table->integer('period_days');
             $table->dateTime('next_due_at');
             $table->dateTime('last_reviewed_at')->nullable();
@@ -42,5 +55,19 @@ class MaintenanceMigrateCommand extends Command
         $this->info('page_maintenances table created successfully.');
 
         return self::SUCCESS;
+    }
+
+    private function columnUsesBigInteger(string $table, string $column): bool
+    {
+        $connection = Schema::getConnection();
+        $prefixedTable = $connection->getTablePrefix() . $table;
+
+        $columnData = DB::selectOne("SHOW COLUMNS FROM `{$prefixedTable}` LIKE ?", [$column]);
+
+        if (!$columnData || !property_exists($columnData, 'Type')) {
+            return false;
+        }
+
+        return str_contains(strtolower($columnData->Type), 'bigint');
     }
 }
