@@ -25,6 +25,7 @@ class MaintenanceController
         return view('maintenance.tasks', [
             'taskSets' => $tasks,
             'service' => $this->service,
+            'canAdminister' => $this->service->userCanAdminister($user),
         ]);
     }
 

@@ -57,7 +57,7 @@
                     </table>
                 @endif
 
-                @if(user()->hasSystemRole('admin'))
+                @if($canAdminister)
                     <h2 class="text-muted text-small mt-l mb-s">{{ trans('esp::maintenance.tasks.review_title') }}</h2>
                     @if($taskSets['review']->isEmpty())
                         <p class="text-muted">{{ trans('esp::maintenance.tasks.review_empty') }}</p>
