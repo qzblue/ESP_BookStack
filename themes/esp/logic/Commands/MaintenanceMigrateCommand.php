@@ -3,7 +3,7 @@
 namespace EspTheme\Logic\Commands;
 
 use BookStack\Users\Models\User as BookStackUser;
-use BookStack\Entities\Models\Page;
+use BookStack\Entities\Models\EntityPageData;
 use Illuminate\Console\Command;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -20,15 +20,15 @@ class MaintenanceMigrateCommand extends Command
             return self::SUCCESS;
         }
 
-        $pageTable = (new Page())->getTable();
+        $pageDataTable = (new EntityPageData())->getTable();
         $userTable = (new BookStackUser())->getTable();
 
-        if (!Schema::hasTable($pageTable) || !Schema::hasTable($userTable)) {
+        if (!Schema::hasTable($pageDataTable) || !Schema::hasTable($userTable)) {
             $this->error('Core tables not found. Run the standard BookStack migrations before provisioning maintenance tables.');
             return self::FAILURE;
         }
 
-        Schema::create('page_maintenances', function (Blueprint $table) use ($pageTable, $userTable) {
+        Schema::create('page_maintenances', function (Blueprint $table) use ($pageDataTable, $userTable) {
             $table->bigIncrements('id');
             $table->unsignedBigInteger('page_id');
             $table->unsignedInteger('maintainer_user_id');
@@ -40,8 +40,8 @@ class MaintenanceMigrateCommand extends Command
             $table->timestamps();
 
             $table->foreign('page_id')
-                ->references('id')
-                ->on($pageTable)
+                ->references('page_id')
+                ->on($pageDataTable)
                 ->cascadeOnDelete();
 
             $table->foreign('maintainer_user_id')
