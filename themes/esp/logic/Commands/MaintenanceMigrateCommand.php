@@ -30,7 +30,7 @@ class MaintenanceMigrateCommand extends Command
 
         Schema::create('page_maintenances', function (Blueprint $table) use ($pageTable, $userTable) {
             $table->bigIncrements('id');
-            $table->unsignedInteger('page_id');
+            $table->unsignedBigInteger('page_id');
             $table->unsignedInteger('maintainer_user_id');
             $table->integer('period_days');
             $table->dateTime('next_due_at');
