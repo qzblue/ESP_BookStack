@@ -14,6 +14,7 @@ use BookStack\References\ReferenceController;
 use BookStack\Search\SearchController;
 use BookStack\Settings as SettingControllers;
 use BookStack\Sorting as SortingControllers;
+use BookStack\Maintenance\MaintenanceTaskController;
 use BookStack\Theming\ThemeController;
 use BookStack\Uploads\Controllers as UploadControllers;
 use BookStack\Users\Controllers as UserControllers;
@@ -176,6 +177,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/tags', [ActivityControllers\TagController::class, 'index']);
     Route::get('/ajax/tags/suggest/names', [ActivityControllers\TagController::class, 'getNameSuggestions']);
     Route::get('/ajax/tags/suggest/values', [ActivityControllers\TagController::class, 'getValueSuggestions']);
+
+    // Maintenance tasks
+    Route::get('/maintenance-tasks', [MaintenanceTaskController::class, 'index'])->name('maintenance.index');
+    Route::post('/maintenance-tasks', [MaintenanceTaskController::class, 'assign'])->name('maintenance.assign');
+    Route::post('/maintenance-tasks/{id}/submit', [MaintenanceTaskController::class, 'submitReview'])->name('maintenance.submit');
+    Route::post('/maintenance-tasks/{id}/approve', [MaintenanceTaskController::class, 'approve'])->name('maintenance.approve');
 
     // Comments
     Route::post('/comment/{pageId}', [ActivityControllers\CommentController::class, 'savePageComment']);

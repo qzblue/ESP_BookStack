@@ -3,6 +3,7 @@
 namespace BookStack\Entities\Models;
 
 use BookStack\Entities\Tools\PageContent;
+use BookStack\Maintenance\MaintenanceTask;
 use BookStack\Permissions\PermissionApplicator;
 use BookStack\Uploads\Attachment;
 use Illuminate\Database\Eloquent\Builder;
@@ -106,6 +107,11 @@ class Page extends BookChild
     public function attachments(): HasMany
     {
         return $this->hasMany(Attachment::class, 'uploaded_to')->orderBy('order', 'asc');
+    }
+
+    public function maintenanceTask(): HasOne
+    {
+        return $this->hasOne(MaintenanceTask::class);
     }
 
     /**
