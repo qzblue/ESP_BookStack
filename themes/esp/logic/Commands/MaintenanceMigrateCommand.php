@@ -21,6 +21,7 @@ class MaintenanceMigrateCommand extends Command
 
         $pageDataTable = (new EntityPageData())->getTable();
         $pageMorphClass = (new Page())->getMorphClass();
+        $pageRevisionTable = (new Page())->revisions()->getModel()->getTable();
         $userTable = (new BookStackUser())->getTable();
 
         if (!Schema::hasTable($pageDataTable) || !Schema::hasTable($userTable)) {
@@ -58,6 +59,18 @@ class MaintenanceMigrateCommand extends Command
                 $updated = true;
             }
 
+            if (!Schema::hasColumn($tableName, 'last_approved_revision_id')) {
+                Schema::table($tableName, function (Blueprint $table) use ($pageRevisionTable) {
+                    $table->unsignedInteger('last_approved_revision_id')->nullable()->after('status');
+
+                    $table->foreign('last_approved_revision_id')
+                        ->references('id')
+                        ->on($pageRevisionTable)
+                        ->nullOnDelete();
+                });
+                $updated = true;
+            }
+
             if ($updated) {
                 $this->info('page_maintenances table updated successfully.');
             } else {
@@ -67,7 +80,7 @@ class MaintenanceMigrateCommand extends Command
             return self::SUCCESS;
         }
 
-        Schema::create($tableName, function (Blueprint $table) use ($pageDataTable, $userTable, $pageMorphClass) {
+        Schema::create($tableName, function (Blueprint $table) use ($pageDataTable, $userTable, $pageMorphClass, $pageRevisionTable) {
             $table->bigIncrements('id');
             $table->unsignedBigInteger('page_id');
             $table->string('page_type', 191)->default($pageMorphClass);
@@ -78,6 +91,7 @@ class MaintenanceMigrateCommand extends Command
             $table->dateTime('next_due_at');
             $table->dateTime('last_reviewed_at')->nullable();
             $table->string('status', 32);
+            $table->unsignedInteger('last_approved_revision_id')->nullable();
             $table->text('last_rejected_reason')->nullable();
             $table->timestamps();
 
@@ -92,6 +106,11 @@ class MaintenanceMigrateCommand extends Command
                 ->references('id')
                 ->on($userTable)
                 ->cascadeOnDelete();
+
+            $table->foreign('last_approved_revision_id')
+                ->references('id')
+                ->on($pageRevisionTable)
+                ->nullOnDelete();
         });
 
         $this->info('page_maintenances table created successfully.');

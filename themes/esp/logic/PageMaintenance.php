@@ -19,6 +19,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon $next_due_at
  * @property Carbon|null $last_reviewed_at
  * @property string $status
+ * @property int|null $last_approved_revision_id
  * @property string|null $last_rejected_reason
  * @property Carbon $created_at
  * @property Carbon $updated_at
@@ -43,6 +44,7 @@ class PageMaintenance extends Model
         'next_due_at',
         'last_reviewed_at',
         'status',
+        'last_approved_revision_id',
         'last_rejected_reason',
     ];
 

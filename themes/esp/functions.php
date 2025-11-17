@@ -101,10 +101,23 @@ Theme::listen(ThemeEvents::APP_BOOT, function () use ($serviceClass) {
     View::composer('pages.show', function ($view) use ($serviceClass) {
         $page = $view->getData()['page'] ?? null;
         if ($page instanceof Page) {
+            $viewer = user();
             $service = app($serviceClass);
-            $view->with('espMaintenanceRecord', $service->getMaintenanceForPage($page));
+            $record = $service->getMaintenanceForPage($page);
+
+            if ($record && $viewer && $service->shouldShowApprovedContent($record, $viewer)) {
+                $approvedRevision = $service->getApprovedRevision($record);
+                if ($approvedRevision) {
+                    $page->html = $approvedRevision->html;
+                    $page->text = $approvedRevision->text;
+                    $page->markdown = $approvedRevision->markdown;
+                    $page->name = $approvedRevision->name;
+                }
+            }
+
+            $view->with('espMaintenanceRecord', $record);
             $view->with('espMaintenanceService', $service);
-            $canAdminister = $service->userCanAdminister(user());
+            $canAdminister = $service->userCanAdminister($viewer);
             $view->with('espMaintenanceCanAdminister', $canAdminister);
             if ($canAdminister) {
                 $view->with('espMaintenanceUserOptions', User::query()->orderBy('name')->get());

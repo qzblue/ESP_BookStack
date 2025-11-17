@@ -22,6 +22,7 @@ class MaintenanceService
     protected bool $hasPageTypeColumn;
     protected bool $hasPeriodHourColumn;
     protected bool $hasPeriodMinuteColumn;
+    protected bool $hasApprovedRevisionColumn;
 
     public function __construct()
     {
@@ -36,6 +37,7 @@ class MaintenanceService
         $this->hasPageTypeColumn = $this->tableExists && Schema::hasColumn('page_maintenances', 'page_type');
         $this->hasPeriodHourColumn = $this->tableExists && Schema::hasColumn('page_maintenances', 'period_hours');
         $this->hasPeriodMinuteColumn = $this->tableExists && Schema::hasColumn('page_maintenances', 'period_minutes');
+        $this->hasApprovedRevisionColumn = $this->tableExists && Schema::hasColumn('page_maintenances', 'last_approved_revision_id');
     }
 
     protected function readyOrAbort(): void
@@ -66,7 +68,7 @@ class MaintenanceService
         }
 
         return $this->baseQuery()
-            ->with('maintainer')
+            ->with(['maintainer', 'page'])
             ->where('page_id', $page->id)
             ->first();
     }
@@ -104,9 +106,15 @@ class MaintenanceService
         if (!$maintenance->exists) {
             $maintenance->status = PageMaintenance::STATUS_UP_TO_DATE;
             $maintenance->last_reviewed_at = $now;
+            if ($this->hasApprovedRevisionColumn) {
+                $maintenance->last_approved_revision_id = $page->currentRevision?->id;
+            }
         }
 
         $maintenance->next_due_at = $this->calculateNextDue($now, $periodDays, $periodHours, $periodMinutes);
+        if ($this->hasApprovedRevisionColumn && !$maintenance->last_approved_revision_id) {
+            $maintenance->last_approved_revision_id = $page->currentRevision?->id;
+        }
         if ($maintenance->status === PageMaintenance::STATUS_IN_REVIEW) {
             // Keep review state but clear any previous rejection context.
             $maintenance->last_rejected_reason = null;
@@ -167,6 +175,9 @@ class MaintenanceService
         $now = Carbon::now($this->timezone);
         $maintenance->status = PageMaintenance::STATUS_UP_TO_DATE;
         $maintenance->last_reviewed_at = $now;
+        if ($this->hasApprovedRevisionColumn) {
+            $maintenance->last_approved_revision_id = $page->currentRevision?->id;
+        }
         $maintenance->next_due_at = $this->calculateNextDue(
             $now,
             $maintenance->period_days,
@@ -395,6 +406,9 @@ class MaintenanceService
         if ($this->userCanAdminister($actor)) {
             $maintenance->status = PageMaintenance::STATUS_UP_TO_DATE;
             $maintenance->last_reviewed_at = $now;
+            if ($this->hasApprovedRevisionColumn) {
+                $maintenance->last_approved_revision_id = $page->currentRevision?->id;
+            }
             $maintenance->next_due_at = $this->calculateNextDue(
                 $now,
                 $maintenance->period_days,
@@ -430,6 +444,41 @@ class MaintenanceService
                 $page->getUrl()
             );
         }
+    }
+
+    public function shouldShowApprovedContent(PageMaintenance $maintenance, User $viewer): bool
+    {
+        return $this->hasApprovedRevisionColumn
+            && $maintenance->status === PageMaintenance::STATUS_IN_REVIEW
+            && !$this->userCanAdminister($viewer)
+            && $maintenance->maintainer_user_id !== $viewer->id;
+    }
+
+    public function getApprovedRevision(PageMaintenance $maintenance): ?\BookStack\Entities\Models\PageRevision
+    {
+        $revisionQuery = $maintenance->page?->revisions();
+        if (!$revisionQuery) {
+            return null;
+        }
+
+        if ($this->hasApprovedRevisionColumn && $maintenance->last_approved_revision_id) {
+            $match = (clone $revisionQuery)
+                ->where('id', $maintenance->last_approved_revision_id)
+                ->first();
+            if ($match) {
+                return $match;
+            }
+        }
+
+        if ($maintenance->last_reviewed_at) {
+            return (clone $revisionQuery)
+                ->where('created_at', '<=', $maintenance->last_reviewed_at)
+                ->orderBy('created_at', 'desc')
+                ->orderBy('id', 'desc')
+                ->first();
+        }
+
+        return $revisionQuery->orderBy('created_at', 'asc')->first();
     }
 
     protected function getOrFail(Page $page): PageMaintenance
