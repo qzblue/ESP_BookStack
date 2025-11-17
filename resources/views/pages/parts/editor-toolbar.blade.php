@@ -5,6 +5,15 @@
             <a href="{{ $isDraft ? $page->getParent()->getUrl() : $page->getUrl() }}"
                class="icon-list-item text-link"><span>@icon('back')</span><span class="hide-under-l">{{ trans('common.back') }}</span></a>
         </div>
+        @if(isset($page) && $page->maintenanceTask && $page->maintenanceTask->user_id === user()->id)
+            <div class="text-muted mt-xs">
+                @if($page->maintenanceTask->status === \BookStack\Maintenance\MaintenanceTask::STATUS_PENDING)
+                    📌 此頁面需在 {{ optional($page->maintenanceTask->next_due_at)->format('Y-m-d') }} 前維護更新。
+                @elseif($page->maintenanceTask->status === \BookStack\Maintenance\MaintenanceTask::STATUS_SUBMITTED)
+                    ⏳ 已送審，等待管理員審核。
+                @endif
+            </div>
+        @endif
     </div>
 
     <div class="text-center">
