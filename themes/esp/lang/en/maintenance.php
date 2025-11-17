@@ -18,6 +18,7 @@ return [
         'approved' => '維護審核已通過。',
         'rejected' => '維護更新已被駁回。',
         'missing_table' => '找不到維護資料表，請先在專案根目錄執行「php artisan esp:migrate-maintenance」。',
+        'period_required' => '週期至少需要 1 分鐘，可透過天 / 小時 / 分鐘任一欄位設定。',
     ],
     'card' => [
         'title' => '維護',
@@ -36,10 +37,13 @@ return [
         'not_configured' => '尚未指派維護人。',
         'select_maintainer' => '選擇維護人',
         'period_days' => '週期（天 / 小時 / 分鐘）',
+        'label_days' => '天',
+        'label_hours' => '小時',
+        'label_minutes' => '分鐘',
         'save' => '儲存維護設定',
         'rejection_reason' => '駁回原因',
         'choose_user' => '請選擇使用者',
-        'period_help' => '可填入小時與分鐘以便測試提醒流程。',
+        'period_help' => '最小單位為分鐘，可搭配天與小時組合，至少需設定 1 分鐘。',
     ],
     'tasks' => [
         'title' => '維護任務',

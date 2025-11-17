@@ -94,10 +94,19 @@
                     </div>
                     <div class="stack gap-xxs">
                         <label class="text-small text-muted">{{ trans('esp::maintenance.card.period_days') }}</label>
-                        <div class="grid three-cols gap-xxs">
-                            <input type="number" name="period_days" class="outline" value="{{ $record->period_days ?? 30 }}" min="1" max="365">
-                            <input type="number" name="period_hours" class="outline" value="{{ $record->period_hours ?? 0 }}" min="0" max="23" placeholder="0">
-                            <input type="number" name="period_minutes" class="outline" value="{{ $record->period_minutes ?? 0 }}" min="0" max="59" placeholder="0">
+                        <div class="grid three-cols gap-xxs align-center">
+                            <label class="stack gap-xxs">
+                                <input type="number" name="period_days" class="outline" value="{{ $record->period_days ?? 0 }}" min="0" max="365">
+                                <span class="text-tiny text-muted text-center">{{ trans('esp::maintenance.card.label_days') }}</span>
+                            </label>
+                            <label class="stack gap-xxs">
+                                <input type="number" name="period_hours" class="outline" value="{{ $record->period_hours ?? 0 }}" min="0" max="23" placeholder="0">
+                                <span class="text-tiny text-muted text-center">{{ trans('esp::maintenance.card.label_hours') }}</span>
+                            </label>
+                            <label class="stack gap-xxs">
+                                <input type="number" name="period_minutes" class="outline" value="{{ $record->period_minutes ?? 0 }}" min="0" max="59" placeholder="1">
+                                <span class="text-tiny text-muted text-center">{{ trans('esp::maintenance.card.label_minutes') }}</span>
+                            </label>
                         </div>
                         <div class="text-small text-muted">{{ trans('esp::maintenance.card.period_help') }}</div>
                     </div>

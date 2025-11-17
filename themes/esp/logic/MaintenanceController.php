@@ -102,12 +102,24 @@ class MaintenanceController
 
     protected function validateAssign(Request $request): array
     {
-        return Validator::make($request->all(), [
+        $validator = Validator::make($request->all(), [
             'maintainer_user_id' => ['required', 'integer', 'exists:users,id'],
-            'period_days' => ['required', 'integer', 'min:1', 'max:365'],
+            'period_days' => ['required', 'integer', 'min:0', 'max:365'],
             'period_hours' => ['nullable', 'integer', 'min:0', 'max:23'],
             'period_minutes' => ['nullable', 'integer', 'min:0', 'max:59'],
-        ])->validate();
+        ]);
+
+        $validator->after(function ($validator) use ($request) {
+            $days = (int) $request->input('period_days', 0);
+            $hours = (int) $request->input('period_hours', 0);
+            $minutes = (int) $request->input('period_minutes', 0);
+
+            if ($days <= 0 && $hours <= 0 && $minutes <= 0) {
+                $validator->errors()->add('period_minutes', trans('esp::maintenance.messages.period_required'));
+            }
+        });
+
+        return $validator->validate();
     }
 
     protected function findPage(int $pageId): Page

@@ -65,6 +65,13 @@ class MaintenanceService
 
     public function assign(Page $page, User $maintainer, int $periodDays, int $periodHours = 0, int $periodMinutes = 0): PageMaintenance
     {
+        $periodDays = max(0, $periodDays);
+        $periodHours = max(0, $periodHours);
+        $periodMinutes = max(0, $periodMinutes);
+        if ($periodDays === 0 && $periodHours === 0 && $periodMinutes === 0) {
+            $periodMinutes = 1;
+        }
+
         $queryAttributes = ['page_id' => $page->id];
         if ($this->hasPageTypeColumn) {
             $queryAttributes['page_type'] = $this->pageMorphClass;
