@@ -95,4 +95,13 @@
   - 檢查 BookStack 的 mail 設定是否正確。
   - 可先使用 `php artisan tinker` 測試寄信或檢查佇列服務。
 
+- **出現 `page_type` 欄位不存在或相關 SQL 錯誤**：
+  - 早期版本的維護資料表沒有 `page_type` 欄位，請在 BookStack 專案根目錄重新執行：
+
+    ```bash
+    php artisan esp:migrate-maintenance
+    ```
+
+  - 指令會自動補齊欄位並填入預設值，無須手動修改資料庫。
+
 如需進一步調整，可修改 `themes/esp/logic` 內的服務、命令或通知邏輯。

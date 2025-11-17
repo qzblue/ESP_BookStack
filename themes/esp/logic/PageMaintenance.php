@@ -42,14 +42,21 @@ class PageMaintenance extends Model
         'last_rejected_reason',
     ];
 
-    protected $attributes = [
-        'page_type' => 'page',
-    ];
+    protected $attributes = [];
 
     protected $casts = [
         'next_due_at' => 'datetime',
         'last_reviewed_at' => 'datetime',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (PageMaintenance $maintenance): void {
+            if (empty($maintenance->page_type)) {
+                $maintenance->page_type = (new Page())->getMorphClass();
+            }
+        });
+    }
 
     public function page(): BelongsTo
     {

@@ -7,6 +7,7 @@ use BookStack\Entities\Models\Page;
 use BookStack\Users\Models\User as BookStackUser;
 use Illuminate\Console\Command;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class MaintenanceMigrateCommand extends Command
@@ -16,10 +17,7 @@ class MaintenanceMigrateCommand extends Command
 
     public function handle(): int
     {
-        if (Schema::hasTable('page_maintenances')) {
-            $this->info('The page_maintenances table already exists.');
-            return self::SUCCESS;
-        }
+        $tableName = 'page_maintenances';
 
         $pageDataTable = (new EntityPageData())->getTable();
         $pageMorphClass = (new Page())->getMorphClass();
@@ -30,10 +28,35 @@ class MaintenanceMigrateCommand extends Command
             return self::FAILURE;
         }
 
-        Schema::create('page_maintenances', function (Blueprint $table) use ($pageDataTable, $userTable, $pageMorphClass) {
+        if (Schema::hasTable($tableName)) {
+            $updated = false;
+
+            if (!Schema::hasColumn($tableName, 'page_type')) {
+                Schema::table($tableName, function (Blueprint $table) use ($pageMorphClass) {
+                    $table->string('page_type', 191)->default($pageMorphClass)->after('page_id');
+                });
+
+                DB::table($tableName)
+                    ->whereNull('page_type')
+                    ->orWhere('page_type', '')
+                    ->update(['page_type' => $pageMorphClass]);
+
+                $updated = true;
+            }
+
+            if ($updated) {
+                $this->info('page_maintenances table updated successfully.');
+            } else {
+                $this->info('The page_maintenances table already exists and is up to date.');
+            }
+
+            return self::SUCCESS;
+        }
+
+        Schema::create($tableName, function (Blueprint $table) use ($pageDataTable, $userTable, $pageMorphClass) {
             $table->bigIncrements('id');
             $table->unsignedBigInteger('page_id');
-            $table->string('page_type', 10)->default($pageMorphClass);
+            $table->string('page_type', 191)->default($pageMorphClass);
             $table->unsignedInteger('maintainer_user_id');
             $table->integer('period_days');
             $table->dateTime('next_due_at');
