@@ -10,6 +10,7 @@ use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\View;
+use Illuminate\Support\Facades\Log;
 
 $baseDir = __DIR__;
 
@@ -108,6 +109,20 @@ Theme::listen(ThemeEvents::APP_BOOT, function () use ($serviceClass) {
             if ($canAdminister) {
                 $view->with('espMaintenanceUserOptions', User::query()->orderBy('name')->get());
             }
+        }
+    });
+
+    Page::saved(function (Page $page): void {
+        $actor = user();
+        if (!$actor || $actor->isGuest()) {
+            return;
+        }
+
+        try {
+            app($serviceClass)->handlePageUpdated($page, $actor);
+        } catch (Throwable $e) {
+            // 防止影響原有保存流程，僅記錄異常便於排查。
+            Log::warning('ESP maintenance sync failed: ' . $e->getMessage());
         }
     });
 });

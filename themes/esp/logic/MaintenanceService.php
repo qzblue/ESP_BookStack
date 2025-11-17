@@ -368,6 +368,64 @@ class MaintenanceService
         Notification::send($admins, new MaintenanceStatusNotification($subject, $message, $url));
     }
 
+    /**
+     * Sync maintenance state with page edits & revisions.
+     * - Maintainer編輯：直接視為「提交審核」，發送待審通知給管理員。
+     * - 管理員編輯：直接標記為最新版本並重置下次到期時間。
+     */
+    public function handlePageUpdated(Page $page, User $actor): void
+    {
+        if (!$this->tableExists) {
+            return;
+        }
+
+        $maintenance = $this->getMaintenanceForPage($page);
+        if (!$maintenance) {
+            return;
+        }
+
+        $now = Carbon::now($this->timezone);
+
+        if ($this->userCanAdminister($actor)) {
+            $maintenance->status = PageMaintenance::STATUS_UP_TO_DATE;
+            $maintenance->last_reviewed_at = $now;
+            $maintenance->next_due_at = $this->calculateNextDue(
+                $now,
+                $maintenance->period_days,
+                $this->hasPeriodHourColumn ? ($maintenance->period_hours ?? 0) : 0,
+                $this->hasPeriodMinuteColumn ? ($maintenance->period_minutes ?? 0) : 0
+            );
+            $maintenance->last_rejected_reason = null;
+            $maintenance->save();
+
+            // 提醒維護人：管理員已直接更新並結束本輪維護。
+            $this->notifyMaintainer(
+                $maintenance,
+                trans('esp::maintenance.notifications.approved_subject', ['page' => $page->name]),
+                trans('esp::maintenance.notifications.approved_body', ['page' => $page->name]),
+                $page->getUrl()
+            );
+
+            return;
+        }
+
+        if ($maintenance->maintainer_user_id !== $actor->id) {
+            return;
+        }
+
+        if ($maintenance->status !== PageMaintenance::STATUS_IN_REVIEW) {
+            $maintenance->status = PageMaintenance::STATUS_IN_REVIEW;
+            $maintenance->last_rejected_reason = null;
+            $maintenance->save();
+
+            $this->notifyAdmins(
+                trans('esp::maintenance.notifications.submitted_subject', ['page' => $page->name]),
+                trans('esp::maintenance.notifications.submitted_body', ['page' => $page->name]),
+                $page->getUrl()
+            );
+        }
+    }
+
     protected function getOrFail(Page $page): PageMaintenance
     {
         $this->readyOrAbort();
