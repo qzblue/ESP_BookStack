@@ -61,6 +61,13 @@ class MaintenanceService
         return $query;
     }
 
+    protected function constrainToActivePages(Builder $query): Builder
+    {
+        return $query->whereHas('page', function (Builder $subQuery) {
+            $subQuery->whereNull('deleted_at');
+        });
+    }
+
     public function getMaintenanceForPage(Page $page): ?PageMaintenance
     {
         if (!$this->tableExists) {
@@ -228,7 +235,9 @@ class MaintenanceService
             ];
         }
 
-        $baseQuery = $this->baseQuery()->with(['page.book', 'page.chapter', 'maintainer']);
+        $baseQuery = $this->constrainToActivePages(
+            $this->baseQuery()->with(['page.book', 'page.chapter', 'maintainer'])
+        );
 
         $maintainerTasks = (clone $baseQuery)
             ->where('maintainer_user_id', $user->id)
@@ -264,7 +273,7 @@ class MaintenanceService
         }
 
         if ($this->userCanAdminister($user)) {
-            $count = $this->baseQuery()
+            $count = $this->constrainToActivePages($this->baseQuery())
                 ->where('status', PageMaintenance::STATUS_IN_REVIEW)
                 ->count();
 
@@ -274,7 +283,7 @@ class MaintenanceService
             ];
         }
 
-        $count = $this->baseQuery()
+        $count = $this->constrainToActivePages($this->baseQuery())
             ->where('maintainer_user_id', $user->id)
             ->whereIn('status', [
                 PageMaintenance::STATUS_DUE_SOON,
@@ -300,9 +309,10 @@ class MaintenanceService
         }
 
         /** @var EloquentCollection<int, PageMaintenance> $records */
-        $records = $this->baseQuery()
-            ->with(['maintainer', 'page'])
-            ->get();
+        $records = $this->constrainToActivePages(
+            $this->baseQuery()
+                ->with(['maintainer', 'page'])
+        )->get();
         foreach ($records as $maintenance) {
             $originalStatus = $maintenance->status;
 
