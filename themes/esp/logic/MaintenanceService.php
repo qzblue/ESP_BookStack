@@ -27,6 +27,11 @@ class MaintenanceService
     {
         $this->timezone = config('app.timezone', 'Asia/Shanghai') ?: 'Asia/Shanghai';
         $this->pageMorphClass = (new Page())->getMorphClass();
+        $this->refreshSchemaState();
+    }
+
+    protected function refreshSchemaState(): void
+    {
         $this->tableExists = Schema::hasTable('page_maintenances');
         $this->hasPageTypeColumn = $this->tableExists && Schema::hasColumn('page_maintenances', 'page_type');
         $this->hasPeriodHourColumn = $this->tableExists && Schema::hasColumn('page_maintenances', 'period_hours');
@@ -35,6 +40,7 @@ class MaintenanceService
 
     protected function readyOrAbort(): void
     {
+        $this->refreshSchemaState();
         if (!$this->tableExists) {
             abort(500, trans('esp::maintenance.messages.missing_table'));
         }
