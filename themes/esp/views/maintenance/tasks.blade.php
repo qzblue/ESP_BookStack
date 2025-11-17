@@ -34,18 +34,20 @@
                                         @endif
                                     </div>
                                 </td>
-                                <td>{{ $service->getStatusOptions()[$task->status] ?? $task->status }}</td>
-                                <td>{{ optional($task->next_due_at)->format('Y-m-d') }}</td>
                                 <td>
+                                    <span class="tag outline small">{{ $service->getStatusOptions()[$task->status] ?? $task->status }}</span>
+                                </td>
+                                <td>{{ optional($task->next_due_at)->format('Y-m-d H:i') }}</td>
+                                <td class="stack gap-xxs">
                                     @if(in_array($task->status, [\EspTheme\Logic\PageMaintenance::STATUS_DUE_SOON, \EspTheme\Logic\PageMaintenance::STATUS_OVERDUE]))
                                         <form action="{{ route('maintenance.start', ['page' => $task->page_id]) }}" method="POST" class="inline">
                                             @csrf
-                                            <button class="text-button">{{ trans('esp::maintenance.tasks.start_update') }}</button>
+                                            <button class="button outline small">{{ trans('esp::maintenance.tasks.start_update') }}</button>
                                         </form>
                                     @elseif($task->status === \EspTheme\Logic\PageMaintenance::STATUS_IN_UPDATE)
                                         <form action="{{ route('maintenance.submit', ['page' => $task->page_id]) }}" method="POST" class="inline">
                                             @csrf
-                                            <button class="text-button">{{ trans('esp::maintenance.tasks.submit_review') }}</button>
+                                            <button class="button small">{{ trans('esp::maintenance.tasks.submit_review') }}</button>
                                         </form>
                                     @elseif($task->status === \EspTheme\Logic\PageMaintenance::STATUS_IN_REVIEW)
                                         <span class="text-muted">{{ trans('esp::maintenance.tasks.waiting') }}</span>
@@ -78,15 +80,15 @@
                                     <td>{{ $task->maintainer?->name }}</td>
                                     <td>{{ optional($task->updated_at)->diffForHumans() }}</td>
                                     <td class="stack gap-xs">
-                                        <a class="text-button" href="{{ $task->page?->getUrl('/revisions') }}">{{ trans('esp::maintenance.tasks.view_revisions') }}</a>
+                                        <a class="button outline small" href="{{ $task->page?->getUrl('/revisions') }}">{{ trans('esp::maintenance.tasks.view_revisions') }}</a>
                                         <form action="{{ route('maintenance.approve', ['page' => $task->page_id]) }}" method="POST" class="inline">
                                             @csrf
-                                            <button class="text-button success">{{ trans('esp::maintenance.tasks.approve') }}</button>
+                                            <button class="button success small">{{ trans('esp::maintenance.tasks.approve') }}</button>
                                         </form>
-                                        <form action="{{ route('maintenance.reject', ['page' => $task->page_id]) }}" method="POST" class="stack gap-xs">
+                                        <form action="{{ route('maintenance.reject', ['page' => $task->page_id]) }}" method="POST" class="stack gap-xxs">
                                             @csrf
                                             <input type="text" name="reason" class="outline" placeholder="{{ trans('esp::maintenance.tasks.reason') }}" required>
-                                            <button class="text-button neg">{{ trans('esp::maintenance.tasks.reject') }}</button>
+                                            <button class="button neg small">{{ trans('esp::maintenance.tasks.reject') }}</button>
                                         </form>
                                     </td>
                                 </tr>

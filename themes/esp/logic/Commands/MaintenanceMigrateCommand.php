@@ -31,6 +31,20 @@ class MaintenanceMigrateCommand extends Command
         if (Schema::hasTable($tableName)) {
             $updated = false;
 
+            if (!Schema::hasColumn($tableName, 'period_hours')) {
+                Schema::table($tableName, function (Blueprint $table) {
+                    $table->unsignedTinyInteger('period_hours')->default(0)->after('period_days');
+                });
+                $updated = true;
+            }
+
+            if (!Schema::hasColumn($tableName, 'period_minutes')) {
+                Schema::table($tableName, function (Blueprint $table) {
+                    $table->unsignedTinyInteger('period_minutes')->default(0)->after('period_hours');
+                });
+                $updated = true;
+            }
+
             if (!Schema::hasColumn($tableName, 'page_type')) {
                 Schema::table($tableName, function (Blueprint $table) use ($pageMorphClass) {
                     $table->string('page_type', 191)->default($pageMorphClass)->after('page_id');
@@ -59,6 +73,8 @@ class MaintenanceMigrateCommand extends Command
             $table->string('page_type', 191)->default($pageMorphClass);
             $table->unsignedInteger('maintainer_user_id');
             $table->integer('period_days');
+            $table->unsignedTinyInteger('period_hours')->default(0);
+            $table->unsignedTinyInteger('period_minutes')->default(0);
             $table->dateTime('next_due_at');
             $table->dateTime('last_reviewed_at')->nullable();
             $table->string('status', 32);

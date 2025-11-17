@@ -5,11 +5,23 @@
     $statusLabel = $record ? ($statusOptions[$record->status] ?? $record->status) : null;
     $userOptions = ($userOptions ?? collect());
     $canAdminister = $canAdminister ?? false;
+
+    $periodTextParts = [];
+    if ($record?->period_days) {
+        $periodTextParts[] = trans('esp::maintenance.card.days_format', ['value' => $record->period_days]);
+    }
+    if (!empty($record?->period_hours)) {
+        $periodTextParts[] = trans('esp::maintenance.card.hours_format', ['value' => $record->period_hours]);
+    }
+    if (!empty($record?->period_minutes)) {
+        $periodTextParts[] = trans('esp::maintenance.card.minutes_format', ['value' => $record->period_minutes]);
+    }
+    $periodText = $periodTextParts ? implode(' ', $periodTextParts) : trans('esp::maintenance.card.days_format', ['value' => 0]);
 @endphp
 
-<div class="entity-details maintenance-card mb-l">
+<div class="entity-details maintenance-card mb-l stack gap-m">
     <h5>{{ trans('esp::maintenance.card.title') }}</h5>
-    <div class="blended-links">
+    <div class="blended-links stack gap-s">
         @if($record)
             <div class="entity-meta-item">
                 @icon('user')
@@ -22,7 +34,7 @@
                 @icon('calendar')
                 <div>
                     <div class="text-muted text-small">{{ trans('esp::maintenance.card.period') }}</div>
-                    <div>{{ $record->period_days }} {{ trans('esp::maintenance.card.days_suffix') }}</div>
+                    <div class="text-limit-lines-2">{{ $periodText }}</div>
                 </div>
             </div>
             <div class="entity-meta-item">
@@ -64,26 +76,35 @@
         @endif
     </div>
 
-    <div class="mt-m">
+    <div class="stack gap-m">
         @if($canAdminister)
-            <form action="{{ route('maintenance.assign', ['page' => $page->id]) }}" method="POST" class="stack gap-s mb-m">
+            <form action="{{ route('maintenance.assign', ['page' => $page->id]) }}" method="POST" class="stack gap-s">
                 @csrf
-                <div>
-                    <label class="text-small text-muted">{{ trans('esp::maintenance.card.select_maintainer') }}</label>
-                    <select name="maintainer_user_id" class="outline" required>
-                        <option value="" @if(!$record) selected @endif>{{ trans('esp::maintenance.card.choose_user') }}</option>
-                        @foreach($userOptions as $userOption)
-                            <option value="{{ $userOption->id }}" @if($record && $record->maintainer_user_id === $userOption->id) selected @endif>
-                                {{ $userOption->name }}
-                            </option>
-                        @endforeach
-                    </select>
+                <div class="grid two-cols gap-s">
+                    <div class="stack gap-xxs">
+                        <label class="text-small text-muted">{{ trans('esp::maintenance.card.select_maintainer') }}</label>
+                        <select name="maintainer_user_id" class="outline" required>
+                            <option value="" @if(!$record) selected @endif>{{ trans('esp::maintenance.card.choose_user') }}</option>
+                            @foreach($userOptions as $userOption)
+                                <option value="{{ $userOption->id }}" @if($record && $record->maintainer_user_id === $userOption->id) selected @endif>
+                                    {{ $userOption->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="stack gap-xxs">
+                        <label class="text-small text-muted">{{ trans('esp::maintenance.card.period_days') }}</label>
+                        <div class="grid three-cols gap-xxs">
+                            <input type="number" name="period_days" class="outline" value="{{ $record->period_days ?? 30 }}" min="1" max="365">
+                            <input type="number" name="period_hours" class="outline" value="{{ $record->period_hours ?? 0 }}" min="0" max="23" placeholder="0">
+                            <input type="number" name="period_minutes" class="outline" value="{{ $record->period_minutes ?? 0 }}" min="0" max="59" placeholder="0">
+                        </div>
+                        <div class="text-small text-muted">{{ trans('esp::maintenance.card.period_help') }}</div>
+                    </div>
                 </div>
-                <div>
-                    <label class="text-small text-muted">{{ trans('esp::maintenance.card.period_days') }}</label>
-                    <input type="number" name="period_days" class="outline" value="{{ $record->period_days ?? 30 }}" min="1" max="365">
+                <div class="flex-container-row gap-s items-center">
+                    <button type="submit" class="button">{{ trans('esp::maintenance.card.save') }}</button>
                 </div>
-                <button type="submit" class="button">{{ trans('esp::maintenance.card.save') }}</button>
             </form>
         @endif
 

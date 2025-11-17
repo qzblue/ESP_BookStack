@@ -19,12 +19,16 @@ class MaintenanceService
     protected string $pageMorphClass;
     protected bool $tableExists;
     protected bool $hasPageTypeColumn;
+    protected bool $hasPeriodHourColumn;
+    protected bool $hasPeriodMinuteColumn;
 
     public function __construct()
     {
         $this->pageMorphClass = (new Page())->getMorphClass();
         $this->tableExists = Schema::hasTable('page_maintenances');
         $this->hasPageTypeColumn = $this->tableExists && Schema::hasColumn('page_maintenances', 'page_type');
+        $this->hasPeriodHourColumn = $this->tableExists && Schema::hasColumn('page_maintenances', 'period_hours');
+        $this->hasPeriodMinuteColumn = $this->tableExists && Schema::hasColumn('page_maintenances', 'period_minutes');
     }
 
     protected function readyOrAbort(): void
@@ -59,7 +63,7 @@ class MaintenanceService
             ->first();
     }
 
-    public function assign(Page $page, User $maintainer, int $periodDays): PageMaintenance
+    public function assign(Page $page, User $maintainer, int $periodDays, int $periodHours = 0, int $periodMinutes = 0): PageMaintenance
     {
         $queryAttributes = ['page_id' => $page->id];
         if ($this->hasPageTypeColumn) {
@@ -73,6 +77,12 @@ class MaintenanceService
         }
         $maintenance->maintainer_user_id = $maintainer->id;
         $maintenance->period_days = $periodDays;
+        if ($this->hasPeriodHourColumn) {
+            $maintenance->period_hours = $periodHours;
+        }
+        if ($this->hasPeriodMinuteColumn) {
+            $maintenance->period_minutes = $periodMinutes;
+        }
 
         $now = Carbon::now();
 
@@ -81,7 +91,7 @@ class MaintenanceService
             $maintenance->last_reviewed_at = $now;
         }
 
-        $maintenance->next_due_at = (clone $now)->addDays($periodDays);
+        $maintenance->next_due_at = $this->calculateNextDue($now, $periodDays, $periodHours, $periodMinutes);
         if ($maintenance->status === PageMaintenance::STATUS_IN_REVIEW) {
             // Keep review state but clear any previous rejection context.
             $maintenance->last_rejected_reason = null;
@@ -142,7 +152,12 @@ class MaintenanceService
         $now = Carbon::now();
         $maintenance->status = PageMaintenance::STATUS_UP_TO_DATE;
         $maintenance->last_reviewed_at = $now;
-        $maintenance->next_due_at = (clone $now)->addDays($maintenance->period_days);
+        $maintenance->next_due_at = $this->calculateNextDue(
+            $now,
+            $maintenance->period_days,
+            $this->hasPeriodHourColumn ? ($maintenance->period_hours ?? 0) : 0,
+            $this->hasPeriodMinuteColumn ? ($maintenance->period_minutes ?? 0) : 0
+        );
         $maintenance->last_rejected_reason = null;
         $maintenance->save();
 
@@ -372,5 +387,13 @@ class MaintenanceService
         if (!$this->userCanAdminister($user)) {
             abort(403, 'Only administrators can perform this action');
         }
+    }
+
+    protected function calculateNextDue(Carbon $base, int $days, int $hours, int $minutes): Carbon
+    {
+        return (clone $base)
+            ->addDays($days)
+            ->addHours($hours)
+            ->addMinutes($minutes);
     }
 }

@@ -16,6 +16,9 @@ class MaintenanceStatusNotification extends Notification
         protected string $message,
         protected ?string $actionUrl = null,
     ) {
+        if (!$this->actionUrl) {
+            $this->actionUrl = url('/');
+        }
     }
 
     public function via($notifiable): array
@@ -34,9 +37,7 @@ class MaintenanceStatusNotification extends Notification
             ->subject($this->subject)
             ->line($this->message);
 
-        if ($this->actionUrl) {
-            $mail->action(trans('esp::maintenance.mail_action'), $this->actionUrl);
-        }
+        $mail->action(trans('esp::maintenance.mail_action'), $this->actionUrl);
 
         return $mail;
     }

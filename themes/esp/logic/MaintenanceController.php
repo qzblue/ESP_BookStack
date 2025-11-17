@@ -37,7 +37,13 @@ class MaintenanceController
         $maintainer = User::query()->findOrFail($data['maintainer_user_id']);
         $page = $this->findPage($pageId);
 
-        $this->service->assign($page, $maintainer, (int) $data['period_days']);
+        $this->service->assign(
+            $page,
+            $maintainer,
+            (int) $data['period_days'],
+            (int) ($data['period_hours'] ?? 0),
+            (int) ($data['period_minutes'] ?? 0)
+        );
         session()->flash('success', trans('esp::maintenance.messages.assigned'));
 
         return Redirect::to($page->getUrl());
@@ -99,6 +105,8 @@ class MaintenanceController
         return Validator::make($request->all(), [
             'maintainer_user_id' => ['required', 'integer', 'exists:users,id'],
             'period_days' => ['required', 'integer', 'min:1', 'max:365'],
+            'period_hours' => ['nullable', 'integer', 'min:0', 'max:23'],
+            'period_minutes' => ['nullable', 'integer', 'min:0', 'max:59'],
         ])->validate();
     }
 

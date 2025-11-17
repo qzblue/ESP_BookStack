@@ -14,6 +14,8 @@ use Illuminate\Support\Carbon;
  * @property string $page_type
  * @property int $maintainer_user_id
  * @property int $period_days
+ * @property int $period_hours
+ * @property int $period_minutes
  * @property Carbon $next_due_at
  * @property Carbon|null $last_reviewed_at
  * @property string $status
@@ -36,6 +38,8 @@ class PageMaintenance extends Model
         'page_type',
         'maintainer_user_id',
         'period_days',
+        'period_hours',
+        'period_minutes',
         'next_due_at',
         'last_reviewed_at',
         'status',
