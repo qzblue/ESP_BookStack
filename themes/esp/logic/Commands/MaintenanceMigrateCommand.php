@@ -22,16 +22,15 @@ class MaintenanceMigrateCommand extends Command
         }
 
         $pageDataTable = (new EntityPageData())->getTable();
-        $entitiesTable = (new Page())->getTable();
         $pageMorphClass = (new Page())->getMorphClass();
         $userTable = (new BookStackUser())->getTable();
 
-        if (!Schema::hasTable($pageDataTable) || !Schema::hasTable($entitiesTable) || !Schema::hasTable($userTable)) {
+        if (!Schema::hasTable($pageDataTable) || !Schema::hasTable($userTable)) {
             $this->error('Core tables not found. Run the standard BookStack migrations before provisioning maintenance tables.');
             return self::FAILURE;
         }
 
-        Schema::create('page_maintenances', function (Blueprint $table) use ($entitiesTable, $userTable, $pageMorphClass) {
+        Schema::create('page_maintenances', function (Blueprint $table) use ($pageDataTable, $userTable, $pageMorphClass) {
             $table->bigIncrements('id');
             $table->unsignedBigInteger('page_id');
             $table->string('page_type', 10)->default($pageMorphClass);
@@ -45,9 +44,9 @@ class MaintenanceMigrateCommand extends Command
 
             $table->unique(['page_id', 'page_type']);
 
-            $table->foreign(['page_id', 'page_type'])
-                ->references(['id', 'type'])
-                ->on($entitiesTable)
+            $table->foreign('page_id')
+                ->references('page_id')
+                ->on($pageDataTable)
                 ->cascadeOnDelete();
 
             $table->foreign('maintainer_user_id')
