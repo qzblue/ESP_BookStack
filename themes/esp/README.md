@@ -40,6 +40,7 @@
 | 維護任務總覽 | `https://<your-domain>/maintenance/tasks` | 任何已登入的使用者都可開啟。頁面上方顯示「我負責的頁面」，具管理權限者（Admin）還會看到「待審頁面」。 |
 | 頁首維護圖示 | 右上角導覽列的日曆圖示 | 會顯示待處理數量，點擊會跳轉到 `/maintenance/tasks`。 |
 | Page 詳情維護卡片 | 任一 Page 右側欄「維護」卡片 | Admin 可在此指派維護人與週期、執行審核；指定的 Maintainer 可啟動更新或提交審核。 |
+| 編輯/修訂聯動 | 編輯並儲存 Page | 維護人編輯後會自動切換為「審核中」並通知管理員；管理員直接編輯則會視為通過並重算下一次到期。 |
 
 > **提示**：要讓頁首圖示與維護卡片顯示資訊，必須先在某個 Page 完成一次「指派維護人」。
 
@@ -77,6 +78,18 @@
 
 - 指令會依 `next_due_at` 自動更新狀態並寄送 email/站內通知。
 - 「即將到期」的門檻預設為 7 天，可視需求調整 `MaintenanceService::DUE_SOON_THRESHOLD_DAYS` 常數。
+
+### 分鐘級快速驗證
+
+1. 在 Page 右側「維護」卡片設定天/小時/分鐘，使總時長至少 1 分鐘（最小單位為分鐘）。
+2. 確認 `.env` 的 `APP_TIMEZONE=Asia/Shanghai` 或 crontab 已設定 `TZ=Asia/Shanghai`。
+3. 手動執行每日巡檢以觸發狀態變更與通知：
+
+   ```bash
+   php artisan esp:maintenance-check
+   ```
+
+4. 重新整理 Page 詳情或 `/maintenance/tasks`，狀態應變為「即將到期」或「已逾期」，並收到郵件/站內通知。
 
 ---
 
