@@ -13,7 +13,7 @@
 ## 安裝與啟用
 
 1. 將 `themes/esp` 放入 BookStack 專案的 `themes/` 目錄中。
-2. 在 `.env` 或後台系統設定中把 `APP_THEME` 設為 `esp`，確保 Logical Theme 與 Visual Theme 一併載入。
+2. 在 `.env` 或後台系統設定中把 `APP_THEME` 設為 `esp`，並確認 `APP_TIMEZONE=Asia/Shanghai`（以東八區時間排程及寄送提醒），確保 Logical Theme 與 Visual Theme 一併載入。
 3. 建立維護資料表（僅需執行一次）：
 
    ```bash
@@ -63,7 +63,7 @@
 
 ## 排程與提醒
 
-- 建議在伺服器 crontab 新增每日巡檢：
+- 建議在伺服器 crontab 新增每日巡檢（伺服器時區建議設為 Asia/Shanghai，或在 crontab 內加入 `TZ=Asia/Shanghai`）：
 
   ```cron
   0 4 * * * php /path/to/bookstack/artisan esp:maintenance-check
@@ -93,6 +93,7 @@
 
 - **Email 沒收到**：
   - 檢查 BookStack 的 mail 設定是否正確。
+  - 確認 `.env` 的時區為 `Asia/Shanghai`，並已指派維護週期；系統會在達到 `next_due_at` 時變更狀態並觸發提醒。
   - 可先使用 `php artisan tinker` 測試寄信或檢查佇列服務。
 
 - **出現 `page_type` 欄位不存在或相關 SQL 錯誤**：

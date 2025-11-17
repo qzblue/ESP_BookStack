@@ -16,6 +16,7 @@ class MaintenanceService
 {
     public const DUE_SOON_THRESHOLD_DAYS = 7;
 
+    protected string $timezone;
     protected string $pageMorphClass;
     protected bool $tableExists;
     protected bool $hasPageTypeColumn;
@@ -24,6 +25,7 @@ class MaintenanceService
 
     public function __construct()
     {
+        $this->timezone = config('app.timezone', 'Asia/Shanghai') ?: 'Asia/Shanghai';
         $this->pageMorphClass = (new Page())->getMorphClass();
         $this->tableExists = Schema::hasTable('page_maintenances');
         $this->hasPageTypeColumn = $this->tableExists && Schema::hasColumn('page_maintenances', 'page_type');
@@ -91,7 +93,7 @@ class MaintenanceService
             $maintenance->period_minutes = $periodMinutes;
         }
 
-        $now = Carbon::now();
+        $now = Carbon::now($this->timezone);
 
         if (!$maintenance->exists) {
             $maintenance->status = PageMaintenance::STATUS_UP_TO_DATE;
@@ -156,7 +158,7 @@ class MaintenanceService
             abort(422, 'Only maintenance in review can be approved.');
         }
 
-        $now = Carbon::now();
+        $now = Carbon::now($this->timezone);
         $maintenance->status = PageMaintenance::STATUS_UP_TO_DATE;
         $maintenance->last_reviewed_at = $now;
         $maintenance->next_due_at = $this->calculateNextDue(
@@ -272,7 +274,7 @@ class MaintenanceService
 
     public function runDailyCheck(): array
     {
-        $now = Carbon::now();
+        $now = Carbon::now($this->timezone);
         $dueSoonLimit = (clone $now)->addDays(self::DUE_SOON_THRESHOLD_DAYS);
         $updated = [];
 
@@ -287,11 +289,13 @@ class MaintenanceService
         foreach ($records as $maintenance) {
             $originalStatus = $maintenance->status;
 
-            if ($maintenance->next_due_at && $maintenance->next_due_at->lessThan($now) && !in_array($maintenance->status, [PageMaintenance::STATUS_IN_UPDATE, PageMaintenance::STATUS_IN_REVIEW], true)) {
+            $nextDue = $maintenance->next_due_at?->copy()->setTimezone($this->timezone);
+
+            if ($nextDue && $nextDue->lessThan($now) && !in_array($maintenance->status, [PageMaintenance::STATUS_IN_UPDATE, PageMaintenance::STATUS_IN_REVIEW], true)) {
                 $maintenance->status = PageMaintenance::STATUS_OVERDUE;
-            } elseif ($maintenance->next_due_at && $maintenance->next_due_at->lessThanOrEqualTo($dueSoonLimit) && $maintenance->status === PageMaintenance::STATUS_UP_TO_DATE) {
+            } elseif ($nextDue && $nextDue->lessThanOrEqualTo($dueSoonLimit) && $maintenance->status === PageMaintenance::STATUS_UP_TO_DATE) {
                 $maintenance->status = PageMaintenance::STATUS_DUE_SOON;
-            } elseif ($maintenance->next_due_at && $maintenance->next_due_at->greaterThan($dueSoonLimit) && $maintenance->status === PageMaintenance::STATUS_DUE_SOON) {
+            } elseif ($nextDue && $nextDue->greaterThan($dueSoonLimit) && $maintenance->status === PageMaintenance::STATUS_DUE_SOON) {
                 $maintenance->status = PageMaintenance::STATUS_UP_TO_DATE;
             }
 
