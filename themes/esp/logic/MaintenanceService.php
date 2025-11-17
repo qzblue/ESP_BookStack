@@ -7,36 +7,70 @@ use BookStack\Permissions\Permission;
 use BookStack\Users\Models\User;
 use EspTheme\Logic\Notifications\MaintenanceStatusNotification;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Schema;
 
 class MaintenanceService
 {
     public const DUE_SOON_THRESHOLD_DAYS = 7;
 
     protected string $pageMorphClass;
+    protected bool $tableExists;
+    protected bool $hasPageTypeColumn;
 
     public function __construct()
     {
         $this->pageMorphClass = (new Page())->getMorphClass();
+        $this->tableExists = Schema::hasTable('page_maintenances');
+        $this->hasPageTypeColumn = $this->tableExists && Schema::hasColumn('page_maintenances', 'page_type');
+    }
+
+    protected function readyOrAbort(): void
+    {
+        if (!$this->tableExists) {
+            abort(500, trans('esp::maintenance.messages.missing_table'));
+        }
+    }
+
+    protected function baseQuery(): Builder
+    {
+        $this->readyOrAbort();
+
+        $query = PageMaintenance::query();
+
+        if ($this->hasPageTypeColumn) {
+            $query->where('page_type', $this->pageMorphClass);
+        }
+
+        return $query;
     }
 
     public function getMaintenanceForPage(Page $page): ?PageMaintenance
     {
-        return PageMaintenance::query()
+        if (!$this->tableExists) {
+            return null;
+        }
+
+        return $this->baseQuery()
             ->with('maintainer')
             ->where('page_id', $page->id)
-            ->where('page_type', $this->pageMorphClass)
             ->first();
     }
 
     public function assign(Page $page, User $maintainer, int $periodDays): PageMaintenance
     {
-        $maintenance = PageMaintenance::query()->firstOrNew([
-            'page_id' => $page->id,
-            'page_type' => $this->pageMorphClass,
-        ]);
-        $maintenance->page_type = $this->pageMorphClass;
+        $queryAttributes = ['page_id' => $page->id];
+        if ($this->hasPageTypeColumn) {
+            $queryAttributes['page_type'] = $this->pageMorphClass;
+        }
+
+        $maintenance = $this->baseQuery()->firstOrNew($queryAttributes);
+
+        if ($this->hasPageTypeColumn) {
+            $maintenance->page_type = $this->pageMorphClass;
+        }
         $maintenance->maintainer_user_id = $maintainer->id;
         $maintenance->period_days = $periodDays;
 
@@ -146,9 +180,14 @@ class MaintenanceService
 
     public function getTasksForUser(User $user): array
     {
-        $baseQuery = PageMaintenance::query()
-            ->where('page_type', $this->pageMorphClass)
-            ->with(['page.book', 'page.chapter', 'maintainer']);
+        if (!$this->tableExists) {
+            return [
+                'maintainer' => collect(),
+                'review' => collect(),
+            ];
+        }
+
+        $baseQuery = $this->baseQuery()->with(['page.book', 'page.chapter', 'maintainer']);
 
         $maintainerTasks = (clone $baseQuery)
             ->where('maintainer_user_id', $user->id)
@@ -176,9 +215,15 @@ class MaintenanceService
 
     public function getHeaderSummaryForUser(User $user): array
     {
+        if (!$this->tableExists) {
+            return [
+                'count' => 0,
+                'label' => trans('esp::maintenance.header_maintainer', ['count' => 0]),
+            ];
+        }
+
         if ($this->userCanAdminister($user)) {
-            $count = PageMaintenance::query()
-                ->where('page_type', $this->pageMorphClass)
+            $count = $this->baseQuery()
                 ->where('status', PageMaintenance::STATUS_IN_REVIEW)
                 ->count();
 
@@ -188,8 +233,7 @@ class MaintenanceService
             ];
         }
 
-        $count = PageMaintenance::query()
-            ->where('page_type', $this->pageMorphClass)
+        $count = $this->baseQuery()
             ->where('maintainer_user_id', $user->id)
             ->whereIn('status', [
                 PageMaintenance::STATUS_DUE_SOON,
@@ -210,9 +254,12 @@ class MaintenanceService
         $dueSoonLimit = (clone $now)->addDays(self::DUE_SOON_THRESHOLD_DAYS);
         $updated = [];
 
+        if (!$this->tableExists) {
+            return $updated;
+        }
+
         /** @var EloquentCollection<int, PageMaintenance> $records */
-        $records = PageMaintenance::query()
-            ->where('page_type', $this->pageMorphClass)
+        $records = $this->baseQuery()
             ->with(['maintainer', 'page'])
             ->get();
         foreach ($records as $maintenance) {
@@ -297,10 +344,8 @@ class MaintenanceService
 
     protected function getOrFail(Page $page): PageMaintenance
     {
-        $maintenance = PageMaintenance::query()
-            ->where('page_id', $page->id)
-            ->where('page_type', $this->pageMorphClass)
-            ->first();
+        $this->readyOrAbort();
+        $maintenance = $this->getMaintenanceForPage($page);
         if (!$maintenance) {
             abort(404, 'Maintenance record not found');
         }

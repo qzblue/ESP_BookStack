@@ -17,6 +17,7 @@ return [
         'submitted' => '更新已送出待審。',
         'approved' => '維護審核已通過。',
         'rejected' => '維護更新已被駁回。',
+        'missing_table' => '找不到維護資料表，請先在專案根目錄執行「php artisan esp:migrate-maintenance」。',
     ],
     'card' => [
         'title' => '維護',
