@@ -29,12 +29,13 @@ class MaintenanceController
         ]);
     }
 
-    public function assign(Request $request, Page $page): RedirectResponse
+    public function assign(Request $request, int $pageId): RedirectResponse
     {
         $this->ensureAdmin();
 
         $data = $this->validateAssign($request);
         $maintainer = User::query()->findOrFail($data['maintainer_user_id']);
+        $page = $this->findPage($pageId);
 
         $this->service->assign($page, $maintainer, (int) $data['period_days']);
         session()->flash('success', trans('esp::maintenance.messages.assigned'));
@@ -42,25 +43,28 @@ class MaintenanceController
         return Redirect::to($page->getUrl());
     }
 
-    public function startUpdate(Page $page): RedirectResponse
+    public function startUpdate(int $pageId): RedirectResponse
     {
+        $page = $this->findPage($pageId);
         $this->service->startUpdate($page, user());
         session()->flash('success', trans('esp::maintenance.messages.started'));
 
         return Redirect::to($page->getUrl());
     }
 
-    public function submitReview(Page $page): RedirectResponse
+    public function submitReview(int $pageId): RedirectResponse
     {
+        $page = $this->findPage($pageId);
         $this->service->submitReview($page, user());
         session()->flash('success', trans('esp::maintenance.messages.submitted'));
 
         return Redirect::to($page->getUrl());
     }
 
-    public function approve(Page $page): RedirectResponse
+    public function approve(int $pageId): RedirectResponse
     {
         $this->ensureAdmin();
+        $page = $this->findPage($pageId);
 
         $this->service->approve($page, user());
         session()->flash('success', trans('esp::maintenance.messages.approved'));
@@ -68,7 +72,7 @@ class MaintenanceController
         return Redirect::to($page->getUrl());
     }
 
-    public function reject(Request $request, Page $page): RedirectResponse
+    public function reject(Request $request, int $pageId): RedirectResponse
     {
         $this->ensureAdmin();
 
@@ -76,6 +80,7 @@ class MaintenanceController
             'reason' => ['required', 'string', 'max:1000'],
         ])->validate();
 
+        $page = $this->findPage($pageId);
         $this->service->reject($page, user(), $data['reason']);
         session()->flash('error', trans('esp::maintenance.messages.rejected'));
 
@@ -95,5 +100,16 @@ class MaintenanceController
             'maintainer_user_id' => ['required', 'integer', 'exists:users,id'],
             'period_days' => ['required', 'integer', 'min:1', 'max:365'],
         ])->validate();
+    }
+
+    protected function findPage(int $pageId): Page
+    {
+        $page = Page::query()->find($pageId);
+
+        if (!$page) {
+            abort(404, 'Page not found');
+        }
+
+        return $page;
     }
 }

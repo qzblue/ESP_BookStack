@@ -117,10 +117,10 @@ Theme::listen(ThemeEvents::ROUTES_REGISTER_WEB_AUTH, function (Router $router) {
 
     $router->group(['prefix' => 'maintenance'], function () use ($router, $controller) {
         $router->get('tasks', $controller . '@listTasks')->name('maintenance.tasks');
-        $router->post('assign/{page}', $controller . '@assign')->name('maintenance.assign');
-        $router->post('start/{page}', $controller . '@startUpdate')->name('maintenance.start');
-        $router->post('submit/{page}', $controller . '@submitReview')->name('maintenance.submit');
-        $router->post('approve/{page}', $controller . '@approve')->name('maintenance.approve');
-        $router->post('reject/{page}', $controller . '@reject')->name('maintenance.reject');
+        $router->post('assign/{page}', $controller . '@assign')->where(['page' => '[0-9]+'])->name('maintenance.assign');
+        $router->post('start/{page}', $controller . '@startUpdate')->where(['page' => '[0-9]+'])->name('maintenance.start');
+        $router->post('submit/{page}', $controller . '@submitReview')->where(['page' => '[0-9]+'])->name('maintenance.submit');
+        $router->post('approve/{page}', $controller . '@approve')->where(['page' => '[0-9]+'])->name('maintenance.approve');
+        $router->post('reject/{page}', $controller . '@reject')->where(['page' => '[0-9]+'])->name('maintenance.reject');
     });
 });

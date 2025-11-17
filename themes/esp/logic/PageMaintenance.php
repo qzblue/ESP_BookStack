@@ -11,6 +11,7 @@ use Illuminate\Support\Carbon;
 /**
  * @property int $id
  * @property int $page_id
+ * @property string $page_type
  * @property int $maintainer_user_id
  * @property int $period_days
  * @property Carbon $next_due_at
@@ -32,12 +33,17 @@ class PageMaintenance extends Model
 
     protected $fillable = [
         'page_id',
+        'page_type',
         'maintainer_user_id',
         'period_days',
         'next_due_at',
         'last_reviewed_at',
         'status',
         'last_rejected_reason',
+    ];
+
+    protected $attributes = [
+        'page_type' => 'page',
     ];
 
     protected $casts = [
@@ -47,7 +53,7 @@ class PageMaintenance extends Model
 
     public function page(): BelongsTo
     {
-        return $this->belongsTo(Page::class);
+        return $this->belongsTo(Page::class, 'page_id', 'id')->withTrashed();
     }
 
     public function maintainer(): BelongsTo

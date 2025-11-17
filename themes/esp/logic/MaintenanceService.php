@@ -14,14 +14,29 @@ class MaintenanceService
 {
     public const DUE_SOON_THRESHOLD_DAYS = 7;
 
+    protected string $pageMorphClass;
+
+    public function __construct()
+    {
+        $this->pageMorphClass = (new Page())->getMorphClass();
+    }
+
     public function getMaintenanceForPage(Page $page): ?PageMaintenance
     {
-        return PageMaintenance::query()->with('maintainer')->where('page_id', $page->id)->first();
+        return PageMaintenance::query()
+            ->with('maintainer')
+            ->where('page_id', $page->id)
+            ->where('page_type', $this->pageMorphClass)
+            ->first();
     }
 
     public function assign(Page $page, User $maintainer, int $periodDays): PageMaintenance
     {
-        $maintenance = PageMaintenance::query()->firstOrNew(['page_id' => $page->id]);
+        $maintenance = PageMaintenance::query()->firstOrNew([
+            'page_id' => $page->id,
+            'page_type' => $this->pageMorphClass,
+        ]);
+        $maintenance->page_type = $this->pageMorphClass;
         $maintenance->maintainer_user_id = $maintainer->id;
         $maintenance->period_days = $periodDays;
 
@@ -49,7 +64,7 @@ class MaintenanceService
 
     public function startUpdate(Page $page, User $user): PageMaintenance
     {
-        $maintenance = $this->getOrFail($page->id);
+        $maintenance = $this->getOrFail($page);
         $this->assertMaintainer($maintenance, $user);
         if (!in_array($maintenance->status, [PageMaintenance::STATUS_DUE_SOON, PageMaintenance::STATUS_OVERDUE], true)) {
             abort(422, 'Page is not due for maintenance.');
@@ -63,7 +78,7 @@ class MaintenanceService
 
     public function submitReview(Page $page, User $user): PageMaintenance
     {
-        $maintenance = $this->getOrFail($page->id);
+        $maintenance = $this->getOrFail($page);
         $this->assertMaintainer($maintenance, $user);
         if ($maintenance->status !== PageMaintenance::STATUS_IN_UPDATE) {
             abort(422, 'Page must be in update before submitting for review.');
@@ -84,15 +99,16 @@ class MaintenanceService
 
     public function approve(Page $page, User $admin): PageMaintenance
     {
-        $maintenance = $this->getOrFail($page->id);
+        $maintenance = $this->getOrFail($page);
         $this->assertAdmin($admin);
         if ($maintenance->status !== PageMaintenance::STATUS_IN_REVIEW) {
             abort(422, 'Only maintenance in review can be approved.');
         }
 
+        $now = Carbon::now();
         $maintenance->status = PageMaintenance::STATUS_UP_TO_DATE;
-        $maintenance->last_reviewed_at = Carbon::now();
-        $maintenance->next_due_at = Carbon::now()->addDays($maintenance->period_days);
+        $maintenance->last_reviewed_at = $now;
+        $maintenance->next_due_at = (clone $now)->addDays($maintenance->period_days);
         $maintenance->last_rejected_reason = null;
         $maintenance->save();
 
@@ -108,7 +124,7 @@ class MaintenanceService
 
     public function reject(Page $page, User $admin, string $reason): PageMaintenance
     {
-        $maintenance = $this->getOrFail($page->id);
+        $maintenance = $this->getOrFail($page);
         $this->assertAdmin($admin);
         if ($maintenance->status !== PageMaintenance::STATUS_IN_REVIEW) {
             abort(422, 'Only maintenance in review can be rejected.');
@@ -130,7 +146,9 @@ class MaintenanceService
 
     public function getTasksForUser(User $user): array
     {
-        $baseQuery = PageMaintenance::query()->with(['page.book', 'page.chapter', 'maintainer']);
+        $baseQuery = PageMaintenance::query()
+            ->where('page_type', $this->pageMorphClass)
+            ->with(['page.book', 'page.chapter', 'maintainer']);
 
         $maintainerTasks = (clone $baseQuery)
             ->where('maintainer_user_id', $user->id)
@@ -159,7 +177,10 @@ class MaintenanceService
     public function getHeaderSummaryForUser(User $user): array
     {
         if ($this->userCanAdminister($user)) {
-            $count = PageMaintenance::query()->where('status', PageMaintenance::STATUS_IN_REVIEW)->count();
+            $count = PageMaintenance::query()
+                ->where('page_type', $this->pageMorphClass)
+                ->where('status', PageMaintenance::STATUS_IN_REVIEW)
+                ->count();
 
             return [
                 'count' => $count,
@@ -168,6 +189,7 @@ class MaintenanceService
         }
 
         $count = PageMaintenance::query()
+            ->where('page_type', $this->pageMorphClass)
             ->where('maintainer_user_id', $user->id)
             ->whereIn('status', [
                 PageMaintenance::STATUS_DUE_SOON,
@@ -189,7 +211,10 @@ class MaintenanceService
         $updated = [];
 
         /** @var EloquentCollection<int, PageMaintenance> $records */
-        $records = PageMaintenance::query()->with(['maintainer', 'page'])->get();
+        $records = PageMaintenance::query()
+            ->where('page_type', $this->pageMorphClass)
+            ->with(['maintainer', 'page'])
+            ->get();
         foreach ($records as $maintenance) {
             $originalStatus = $maintenance->status;
 
@@ -270,9 +295,12 @@ class MaintenanceService
         Notification::send($admins, new MaintenanceStatusNotification($subject, $message, $url));
     }
 
-    protected function getOrFail(int $pageId): PageMaintenance
+    protected function getOrFail(Page $page): PageMaintenance
     {
-        $maintenance = PageMaintenance::query()->where('page_id', $pageId)->first();
+        $maintenance = PageMaintenance::query()
+            ->where('page_id', $page->id)
+            ->where('page_type', $this->pageMorphClass)
+            ->first();
         if (!$maintenance) {
             abort(404, 'Maintenance record not found');
         }
