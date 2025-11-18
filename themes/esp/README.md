@@ -119,6 +119,10 @@
   - 確認 `.env` 的時區為 `Asia/Shanghai`，並已指派維護週期；系統會在達到 `next_due_at` 時變更狀態並觸發提醒。
   - 可先使用 `php artisan tinker` 測試寄信或檢查佇列服務。
 
+- **出現 `Column not found: 1054 Unknown column 'deleted_at'`**：
+  - 若使用的 BookStack 版本在 `users` 或 `pages` 資料表沒有 `deleted_at` 欄位，會在查詢時觸發此錯誤。
+  - 從 v25.11.1 的 ESP 主題開始，查詢會自動偵測欄位是否存在，缺少欄位時不再套用軟刪除條件，因此不需手動調整資料庫即可修復。
+
 - **出現 `page_type` 欄位不存在或相關 SQL 錯誤**：
   - 早期版本的維護資料表沒有 `page_type` 欄位，請在 BookStack 專案根目錄重新執行：
 
