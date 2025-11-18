@@ -103,6 +103,7 @@ Theme::listen(ThemeEvents::APP_BOOT, function () use ($serviceClass) {
         if ($user && !$user->isGuest()) {
             $service = app($serviceClass);
             $view->with('espMaintenanceMenuVisible', $service->userCanDocumentManage($user));
+            $view->with('espMaintenanceHeader', $service->getHeaderSummaryForUser($user));
         }
     });
 

@@ -37,9 +37,14 @@
             <li>
                 <a href="{{ route('maintenance.overview') }}"
                    role="menuitem"
-                   class="icon-item">
+                   class="icon-item flex align-items-center gap-xxs">
                     @icon('calendar')
-                    <div>{{ trans('esp::maintenance.overview.menu') }}</div>
+                    <div class="flex align-items-center gap-xxs">
+                        <span>{{ trans('esp::maintenance.overview.menu') }}</span>
+                        @if(($espMaintenanceHeader['count'] ?? 0) > 0)
+                            <span class="tag neg small">{{ $espMaintenanceHeader['count'] }}</span>
+                        @endif
+                    </div>
                 </a>
             </li>
         @endif

@@ -423,38 +423,59 @@ class MaintenanceService
         }
 
         $now = Carbon::now($this->timezone);
+        $currentRevisionId = $page->currentRevision?->id;
 
-        $isAdminOrManager = $this->userCanAdminister($actor) || $this->userCanDocumentManage($actor);
+        $isAdmin = $this->userCanAdminister($actor);
+        $isDocManager = $this->userCanDocumentManage($actor);
         $isMaintainer = $maintenance->maintainer_user_id === $actor->id;
 
-        if (!$isAdminOrManager && !$isMaintainer) {
+        if (!$isAdmin && !$isDocManager && !$isMaintainer) {
             return;
         }
 
-        $maintenance->status = PageMaintenance::STATUS_UP_TO_DATE;
-        $maintenance->last_reviewed_at = $now;
-        $maintenance->last_rejected_reason = null;
+        $hasNewRevision = $currentRevisionId
+            && (!$this->hasApprovedRevisionColumn || $maintenance->last_approved_revision_id !== $currentRevisionId);
 
-        if ($this->hasApprovedRevisionColumn) {
-            $maintenance->last_approved_revision_id = $page->currentRevision?->id;
-        }
+        if ($isAdmin) {
+            $maintenance->status = PageMaintenance::STATUS_UP_TO_DATE;
+            $maintenance->last_reviewed_at = $now;
+            $maintenance->last_rejected_reason = null;
 
-        $maintenance->next_due_at = $this->calculateNextDue(
-            $now,
-            $maintenance->period_days,
-            $this->hasPeriodHourColumn ? ($maintenance->period_hours ?? 0) : 0,
-            $this->hasPeriodMinuteColumn ? ($maintenance->period_minutes ?? 0) : 0
-        );
-        $maintenance->save();
+            if ($this->hasApprovedRevisionColumn && $currentRevisionId) {
+                $maintenance->last_approved_revision_id = $currentRevisionId;
+            }
 
-        if ($isAdminOrManager) {
+            $maintenance->next_due_at = $this->calculateNextDue(
+                $now,
+                $maintenance->period_days,
+                $this->hasPeriodHourColumn ? ($maintenance->period_hours ?? 0) : 0,
+                $this->hasPeriodMinuteColumn ? ($maintenance->period_minutes ?? 0) : 0
+            );
+            $maintenance->save();
+
             $this->notifyMaintainer(
                 $maintenance,
                 trans('esp::maintenance.notifications.approved_subject', ['page' => $page->name]),
                 trans('esp::maintenance.notifications.approved_body', ['page' => $page->name]),
                 $page->getUrl()
             );
+
+            return;
         }
+
+        if (!$hasNewRevision && $maintenance->status === PageMaintenance::STATUS_IN_REVIEW) {
+            return;
+        }
+
+        $maintenance->status = PageMaintenance::STATUS_IN_REVIEW;
+        $maintenance->last_rejected_reason = null;
+        $maintenance->save();
+
+        $this->notifyAdmins(
+            trans('esp::maintenance.notifications.submitted_subject', ['page' => $page->name]),
+            trans('esp::maintenance.notifications.submitted_body', ['page' => $page->name]),
+            $page->getUrl()
+        );
     }
 
     public function shouldShowApprovedContent(PageMaintenance $maintenance, User $viewer): bool
