@@ -23,6 +23,8 @@ class MaintenanceService
     protected bool $hasPeriodHourColumn;
     protected bool $hasPeriodMinuteColumn;
     protected bool $hasApprovedRevisionColumn;
+    protected bool $usersTableHasDeletedAt;
+    protected bool $pagesTableHasDeletedAt;
 
     public function __construct()
     {
@@ -43,6 +45,8 @@ class MaintenanceService
         $this->hasPeriodHourColumn = $this->tableExists && Schema::hasColumn('page_maintenances', 'period_hours');
         $this->hasPeriodMinuteColumn = $this->tableExists && Schema::hasColumn('page_maintenances', 'period_minutes');
         $this->hasApprovedRevisionColumn = $this->tableExists && Schema::hasColumn('page_maintenances', 'last_approved_revision_id');
+        $this->usersTableHasDeletedAt = Schema::hasColumn('users', 'deleted_at');
+        $this->pagesTableHasDeletedAt = Schema::hasColumn('pages', 'deleted_at');
     }
 
     protected function readyOrAbort(): void
@@ -69,7 +73,9 @@ class MaintenanceService
     protected function constrainToActivePages(Builder $query): Builder
     {
         return $query->whereHas('page', function (Builder $subQuery) {
-            $subQuery->whereNull('deleted_at');
+            if ($this->pagesTableHasDeletedAt) {
+                $subQuery->whereNull('deleted_at');
+            }
         });
     }
 
@@ -622,7 +628,9 @@ class MaintenanceService
             ->pluck('maintainer_user_id');
 
         return User::query()
-            ->whereNull('deleted_at')
+            ->when($this->usersTableHasDeletedAt, function (Builder $builder) {
+                $builder->whereNull('deleted_at');
+            })
             ->whereIn('id', $maintainerIds)
             ->orderBy('name')
             ->get(['id', 'name']);
