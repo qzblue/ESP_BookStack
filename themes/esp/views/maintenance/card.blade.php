@@ -5,18 +5,7 @@
     $statusLabel = $record ? ($statusOptions[$record->status] ?? $record->status) : null;
     $userOptions = ($userOptions ?? collect());
     $canAdminister = $canAdminister ?? false;
-
-    $periodTextParts = [];
-    if ($record?->period_days) {
-        $periodTextParts[] = trans('esp::maintenance.card.days_format', ['value' => $record->period_days]);
-    }
-    if (!empty($record?->period_hours)) {
-        $periodTextParts[] = trans('esp::maintenance.card.hours_format', ['value' => $record->period_hours]);
-    }
-    if (!empty($record?->period_minutes)) {
-        $periodTextParts[] = trans('esp::maintenance.card.minutes_format', ['value' => $record->period_minutes]);
-    }
-    $periodText = $periodTextParts ? implode(' ', $periodTextParts) : trans('esp::maintenance.card.days_format', ['value' => 0]);
+    $periodText = $service?->formatPeriod($record) ?? trans('esp::maintenance.card.minutes_format', ['value' => 0]);
 @endphp
 
 <div class="entity-details maintenance-card mb-l stack gap-m">
@@ -41,14 +30,14 @@
                 @icon('history')
                 <div>
                     <div class="text-muted text-small">{{ trans('esp::maintenance.card.last_review') }}</div>
-                    <div>{{ optional($record->last_reviewed_at)->format('Y-m-d H:i') ?? trans('esp::maintenance.card.never') }}</div>
+                    <div>{{ $service?->formatDateTime($record->last_reviewed_at) ?? trans('esp::maintenance.card.never') }}</div>
                 </div>
             </div>
             <div class="entity-meta-item">
                 @icon('clock')
                 <div>
                     <div class="text-muted text-small">{{ trans('esp::maintenance.card.next_due') }}</div>
-                    <div>{{ optional($record->next_due_at)->format('Y-m-d H:i') ?? '—' }}</div>
+                    <div>{{ $service?->formatDateTime($record->next_due_at) ?? '—' }}</div>
                 </div>
             </div>
             <div class="entity-meta-item">

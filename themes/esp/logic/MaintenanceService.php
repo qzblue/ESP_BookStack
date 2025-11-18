@@ -31,6 +31,11 @@ class MaintenanceService
         $this->refreshSchemaState();
     }
 
+    public function getTimezone(): string
+    {
+        return $this->timezone;
+    }
+
     protected function refreshSchemaState(): void
     {
         $this->tableExists = Schema::hasTable('page_maintenances');
@@ -446,6 +451,13 @@ class MaintenanceService
         if ($maintenance->status !== PageMaintenance::STATUS_IN_REVIEW) {
             $maintenance->status = PageMaintenance::STATUS_IN_REVIEW;
             $maintenance->last_rejected_reason = null;
+            $maintenance->last_reviewed_at = $now;
+            $maintenance->next_due_at = $this->calculateNextDue(
+                $now,
+                $maintenance->period_days,
+                $this->hasPeriodHourColumn ? ($maintenance->period_hours ?? 0) : 0,
+                $this->hasPeriodMinuteColumn ? ($maintenance->period_minutes ?? 0) : 0
+            );
             $maintenance->save();
 
             $this->notifyAdmins(
@@ -491,6 +503,41 @@ class MaintenanceService
         return $revisionQuery->orderBy('created_at', 'asc')->first();
     }
 
+    public function formatPeriod(?PageMaintenance $maintenance): string
+    {
+        if (!$maintenance) {
+            return trans('esp::maintenance.card.minutes_format', ['value' => 0]);
+        }
+
+        $parts = [];
+
+        if ($maintenance->period_days > 0) {
+            $parts[] = trans('esp::maintenance.card.days_format', ['value' => $maintenance->period_days]);
+        }
+
+        if ($this->hasPeriodHourColumn && ($maintenance->period_hours ?? 0) > 0) {
+            $parts[] = trans('esp::maintenance.card.hours_format', ['value' => $maintenance->period_hours]);
+        }
+
+        if ($this->hasPeriodMinuteColumn) {
+            $minutes = $maintenance->period_minutes ?? 0;
+            if ($minutes > 0 || empty($parts)) {
+                $parts[] = trans('esp::maintenance.card.minutes_format', ['value' => $minutes]);
+            }
+        }
+
+        return $parts ? implode(' ', $parts) : trans('esp::maintenance.card.minutes_format', ['value' => 0]);
+    }
+
+    public function formatDateTime(?Carbon $value): string
+    {
+        if (!$value) {
+            return '—';
+        }
+
+        return $value->copy()->setTimezone($this->timezone)->format('Y-m-d H:i');
+    }
+
     protected function getOrFail(Page $page): PageMaintenance
     {
         $this->readyOrAbort();
@@ -523,9 +570,29 @@ class MaintenanceService
         }
     }
 
+    public function userCanDocumentManage(User $user): bool
+    {
+        return $this->userCanAdminister($user)
+            || $user->can(Permission::BookUpdateAll->value)
+            || $user->can(Permission::ChapterUpdateAll->value)
+            || $user->can(Permission::PageUpdateAll->value);
+    }
+
+    public function getOverviewRecords(User $user): EloquentCollection
+    {
+        if (!$this->tableExists || !$this->userCanDocumentManage($user)) {
+            return new EloquentCollection();
+        }
+
+        return $this->constrainToActivePages(
+            $this->baseQuery()->with(['page.book', 'page.chapter', 'maintainer'])
+        )->orderBy('next_due_at')->get();
+    }
+
     protected function calculateNextDue(Carbon $base, int $days, int $hours, int $minutes): Carbon
     {
         return (clone $base)
+            ->setTimezone($this->timezone)
             ->addDays($days)
             ->addHours($hours)
             ->addMinutes($minutes);

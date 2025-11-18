@@ -33,6 +33,16 @@
                 <div>{{ trans('preferences.my_account') }}</div>
             </a>
         </li>
+        @if(!empty($espMaintenanceMenuVisible))
+            <li>
+                <a href="{{ route('maintenance.overview') }}"
+                   role="menuitem"
+                   class="icon-item">
+                    @icon('calendar')
+                    <div>{{ trans('esp::maintenance.overview.menu') }}</div>
+                </a>
+            </li>
+        @endif
         <li role="presentation"><hr></li>
         <li>
             @include('common.dark-mode-toggle', ['classes' => 'icon-item', 'buttonRole' => 'menuitem'])
