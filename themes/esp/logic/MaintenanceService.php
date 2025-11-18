@@ -23,12 +23,19 @@ class MaintenanceService
     protected bool $hasPeriodHourColumn;
     protected bool $hasPeriodMinuteColumn;
     protected bool $hasApprovedRevisionColumn;
+    protected bool $usersTableHasDeletedAt;
+    protected bool $pagesTableHasDeletedAt;
 
     public function __construct()
     {
-        $this->timezone = config('app.timezone', 'Asia/Shanghai') ?: 'Asia/Shanghai';
+        $this->timezone = config('app.display_timezone', config('app.timezone', 'Asia/Shanghai')) ?: 'Asia/Shanghai';
         $this->pageMorphClass = (new Page())->getMorphClass();
         $this->refreshSchemaState();
+    }
+
+    public function getTimezone(): string
+    {
+        return $this->timezone;
     }
 
     protected function refreshSchemaState(): void
@@ -38,6 +45,8 @@ class MaintenanceService
         $this->hasPeriodHourColumn = $this->tableExists && Schema::hasColumn('page_maintenances', 'period_hours');
         $this->hasPeriodMinuteColumn = $this->tableExists && Schema::hasColumn('page_maintenances', 'period_minutes');
         $this->hasApprovedRevisionColumn = $this->tableExists && Schema::hasColumn('page_maintenances', 'last_approved_revision_id');
+        $this->usersTableHasDeletedAt = Schema::hasColumn('users', 'deleted_at');
+        $this->pagesTableHasDeletedAt = Schema::hasColumn('pages', 'deleted_at');
     }
 
     protected function readyOrAbort(): void
@@ -64,7 +73,9 @@ class MaintenanceService
     protected function constrainToActivePages(Builder $query): Builder
     {
         return $query->whereHas('page', function (Builder $subQuery) {
-            $subQuery->whereNull('deleted_at');
+            if ($this->pagesTableHasDeletedAt) {
+                $subQuery->whereNull('deleted_at');
+            }
         });
     }
 
@@ -397,8 +408,8 @@ class MaintenanceService
 
     /**
      * Sync maintenance state with page edits & revisions.
-     * - Maintainer編輯：直接視為「提交審核」，發送待審通知給管理員。
-     * - 管理員編輯：直接標記為最新版本並重置下次到期時間。
+     * - 任何可編輯的維護人 / 管理員保存頁面後，週期立即刷新並標記為最新。
+     * - 管理員或文檔管理員完成時，同步通知維護人。 
      */
     public function handlePageUpdated(Page $page, User $actor): void
     {
@@ -412,23 +423,36 @@ class MaintenanceService
         }
 
         $now = Carbon::now($this->timezone);
+        $currentRevisionId = $page->currentRevision?->id;
 
-        if ($this->userCanAdminister($actor)) {
+        $isAdmin = $this->userCanAdminister($actor);
+        $isDocManager = $this->userCanDocumentManage($actor);
+        $isMaintainer = $maintenance->maintainer_user_id === $actor->id;
+
+        if (!$isAdmin && !$isDocManager && !$isMaintainer) {
+            return;
+        }
+
+        $hasNewRevision = $currentRevisionId
+            && (!$this->hasApprovedRevisionColumn || $maintenance->last_approved_revision_id !== $currentRevisionId);
+
+        if ($isAdmin) {
             $maintenance->status = PageMaintenance::STATUS_UP_TO_DATE;
             $maintenance->last_reviewed_at = $now;
-            if ($this->hasApprovedRevisionColumn) {
-                $maintenance->last_approved_revision_id = $page->currentRevision?->id;
+            $maintenance->last_rejected_reason = null;
+
+            if ($this->hasApprovedRevisionColumn && $currentRevisionId) {
+                $maintenance->last_approved_revision_id = $currentRevisionId;
             }
+
             $maintenance->next_due_at = $this->calculateNextDue(
                 $now,
                 $maintenance->period_days,
                 $this->hasPeriodHourColumn ? ($maintenance->period_hours ?? 0) : 0,
                 $this->hasPeriodMinuteColumn ? ($maintenance->period_minutes ?? 0) : 0
             );
-            $maintenance->last_rejected_reason = null;
             $maintenance->save();
 
-            // 提醒維護人：管理員已直接更新並結束本輪維護。
             $this->notifyMaintainer(
                 $maintenance,
                 trans('esp::maintenance.notifications.approved_subject', ['page' => $page->name]),
@@ -439,21 +463,19 @@ class MaintenanceService
             return;
         }
 
-        if ($maintenance->maintainer_user_id !== $actor->id) {
+        if (!$hasNewRevision && $maintenance->status === PageMaintenance::STATUS_IN_REVIEW) {
             return;
         }
 
-        if ($maintenance->status !== PageMaintenance::STATUS_IN_REVIEW) {
-            $maintenance->status = PageMaintenance::STATUS_IN_REVIEW;
-            $maintenance->last_rejected_reason = null;
-            $maintenance->save();
+        $maintenance->status = PageMaintenance::STATUS_IN_REVIEW;
+        $maintenance->last_rejected_reason = null;
+        $maintenance->save();
 
-            $this->notifyAdmins(
-                trans('esp::maintenance.notifications.submitted_subject', ['page' => $page->name]),
-                trans('esp::maintenance.notifications.submitted_body', ['page' => $page->name]),
-                $page->getUrl()
-            );
-        }
+        $this->notifyAdmins(
+            trans('esp::maintenance.notifications.submitted_subject', ['page' => $page->name]),
+            trans('esp::maintenance.notifications.submitted_body', ['page' => $page->name]),
+            $page->getUrl()
+        );
     }
 
     public function shouldShowApprovedContent(PageMaintenance $maintenance, User $viewer): bool
@@ -491,6 +513,41 @@ class MaintenanceService
         return $revisionQuery->orderBy('created_at', 'asc')->first();
     }
 
+    public function formatPeriod(?PageMaintenance $maintenance): string
+    {
+        if (!$maintenance) {
+            return trans('esp::maintenance.card.minutes_format', ['value' => 0]);
+        }
+
+        $parts = [];
+
+        if ($maintenance->period_days > 0) {
+            $parts[] = trans('esp::maintenance.card.days_format', ['value' => $maintenance->period_days]);
+        }
+
+        if ($this->hasPeriodHourColumn && ($maintenance->period_hours ?? 0) > 0) {
+            $parts[] = trans('esp::maintenance.card.hours_format', ['value' => $maintenance->period_hours]);
+        }
+
+        if ($this->hasPeriodMinuteColumn) {
+            $minutes = $maintenance->period_minutes ?? 0;
+            if ($minutes > 0 || empty($parts)) {
+                $parts[] = trans('esp::maintenance.card.minutes_format', ['value' => $minutes]);
+            }
+        }
+
+        return $parts ? implode(' ', $parts) : trans('esp::maintenance.card.minutes_format', ['value' => 0]);
+    }
+
+    public function formatDateTime(?Carbon $value): string
+    {
+        if (!$value) {
+            return '—';
+        }
+
+        return $value->copy()->setTimezone($this->timezone)->format('Y-m-d H:i');
+    }
+
     protected function getOrFail(Page $page): PageMaintenance
     {
         $this->readyOrAbort();
@@ -523,9 +580,87 @@ class MaintenanceService
         }
     }
 
+    public function userCanDocumentManage(User $user): bool
+    {
+        return $this->userCanAdminister($user)
+            || $user->can(Permission::BookUpdateAll->value)
+            || $user->can(Permission::ChapterUpdateAll->value)
+            || $user->can(Permission::PageUpdateAll->value);
+    }
+
+    public function getOverviewRecords(User $user, ?string $status = null, ?int $maintainerId = null): EloquentCollection
+    {
+        if (!$this->tableExists || !$this->userCanDocumentManage($user)) {
+            return new EloquentCollection();
+        }
+
+        $query = $this->constrainToActivePages(
+            $this->baseQuery()->with(['page.book', 'page.chapter', 'maintainer'])
+        );
+
+        $statusKeys = array_keys($this->getStatusOptions());
+
+        if ($status && in_array($status, $statusKeys, true)) {
+            $query->where('status', $status);
+        }
+
+        if ($maintainerId) {
+            $query->where('maintainer_user_id', $maintainerId);
+        }
+
+        return $query->orderBy('next_due_at')->get();
+    }
+
+    public function getOverviewSummary(User $user): array
+    {
+        if (!$this->tableExists || !$this->userCanDocumentManage($user)) {
+            return ['total' => 0, 'statuses' => []];
+        }
+
+        $query = $this->constrainToActivePages($this->baseQuery());
+
+        if (!$this->userCanAdminister($user)) {
+            $query->where('maintainer_user_id', $user->id);
+        }
+
+        $counts = $query
+            ->selectRaw('status, COUNT(*) as aggregate')
+            ->groupBy('status')
+            ->pluck('aggregate', 'status')
+            ->toArray();
+
+        $total = array_sum($counts);
+
+        return [
+            'total' => $total,
+            'statuses' => $counts,
+        ];
+    }
+
+    public function getMaintainerOptions(): EloquentCollection
+    {
+        if (!$this->tableExists) {
+            return new EloquentCollection();
+        }
+
+        $maintainerIds = $this->baseQuery()
+            ->select('maintainer_user_id')
+            ->distinct()
+            ->pluck('maintainer_user_id');
+
+        return User::query()
+            ->when($this->usersTableHasDeletedAt, function (Builder $builder) {
+                $builder->whereNull('deleted_at');
+            })
+            ->whereIn('id', $maintainerIds)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+    }
+
     protected function calculateNextDue(Carbon $base, int $days, int $hours, int $minutes): Carbon
     {
         return (clone $base)
+            ->setTimezone($this->timezone)
             ->addDays($days)
             ->addHours($hours)
             ->addMinutes($minutes);

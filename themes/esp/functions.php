@@ -98,6 +98,15 @@ Theme::listen(ThemeEvents::APP_BOOT, function () use ($serviceClass) {
         }
     });
 
+    View::composer('layouts.parts.header-user-menu', function ($view) use ($serviceClass) {
+        $user = user();
+        if ($user && !$user->isGuest()) {
+            $service = app($serviceClass);
+            $view->with('espMaintenanceMenuVisible', $service->userCanDocumentManage($user));
+            $view->with('espMaintenanceHeader', $service->getHeaderSummaryForUser($user));
+        }
+    });
+
     View::composer('pages.show', function ($view) use ($serviceClass) {
         $page = $view->getData()['page'] ?? null;
         if ($page instanceof Page) {
@@ -145,6 +154,7 @@ Theme::listen(ThemeEvents::ROUTES_REGISTER_WEB_AUTH, function (Router $router) {
 
     $router->group(['prefix' => 'maintenance'], function () use ($router, $controller) {
         $router->get('tasks', $controller . '@listTasks')->name('maintenance.tasks');
+        $router->get('overview', $controller . '@overview')->name('maintenance.overview');
         $router->post('assign/{page}', $controller . '@assign')->where(['page' => '[0-9]+'])->name('maintenance.assign');
         $router->post('start/{page}', $controller . '@startUpdate')->where(['page' => '[0-9]+'])->name('maintenance.start');
         $router->post('submit/{page}', $controller . '@submitReview')->where(['page' => '[0-9]+'])->name('maintenance.submit');

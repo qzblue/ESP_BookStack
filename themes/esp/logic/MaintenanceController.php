@@ -29,6 +29,25 @@ class MaintenanceController
         ]);
     }
 
+    public function overview(Request $request): View
+    {
+        $user = user();
+        $this->ensureDocumentManager();
+
+        $status = $request->string('status')->toString() ?: null;
+        $maintainerId = $request->integer('maintainer') ?: null;
+
+        return view('esp::maintenance.overview', [
+            'records' => $this->service->getOverviewRecords($user, $status, $maintainerId),
+            'service' => $this->service,
+            'canAdminister' => $this->service->userCanAdminister($user),
+            'summary' => $this->service->getOverviewSummary($user),
+            'selectedStatus' => $status,
+            'selectedMaintainer' => $maintainerId,
+            'maintainers' => $this->service->getMaintainerOptions(),
+        ]);
+    }
+
     public function assign(Request $request, int $pageId): RedirectResponse
     {
         $this->ensureAdmin();
@@ -97,6 +116,13 @@ class MaintenanceController
     {
         if (!$this->service->userCanAdminister(user())) {
             throw new AuthorizationException('Only administrators can perform this action');
+        }
+    }
+
+    protected function ensureDocumentManager(): void
+    {
+        if (!$this->service->userCanDocumentManage(user())) {
+            throw new AuthorizationException('Only administrators or document managers can perform this action');
         }
     }
 

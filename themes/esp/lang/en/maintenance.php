@@ -1,8 +1,8 @@
 <?php
 
 return [
-    'header_admin' => '{count} 篇頁面待審核',
-    'header_maintainer' => '{count} 筆維護任務',
+    'header_admin' => ':count 篇頁面待審核',
+    'header_maintainer' => ':count 筆維護任務',
     'status' => [
         'up_to_date' => '已是最新',
         'due_soon' => '即將到期',
@@ -26,9 +26,9 @@ return [
         'not_assigned' => '尚未指派',
         'period' => '維護週期',
         'days_suffix' => '天',
-        'days_format' => '{value} 天',
-        'hours_format' => '{value} 小時',
-        'minutes_format' => '{value} 分鐘',
+        'days_format' => ':value 天',
+        'hours_format' => ':value 小時',
+        'minutes_format' => ':value 分鐘',
         'last_review' => '上次審核',
         'never' => '尚未有紀錄',
         'next_due' => '下一次到期',
@@ -68,6 +68,30 @@ return [
         'approve' => '通過',
         'reject' => '駁回',
         'reason' => '原因',
+    ],
+    'overview' => [
+        'title' => '維護總覽',
+        'heading' => '維護總覽',
+        'menu' => '維護總覽',
+        'empty' => '尚無任何維護設定可供查看。',
+        'summary' => [
+            'total' => '維護頁面總數',
+            'scope' => '依據您的角色可見範圍',
+        ],
+        'filters' => [
+            'status' => '狀態',
+            'maintainer' => '維護人',
+            'apply' => '套用篩選',
+        ],
+        'table' => [
+            'page' => '頁面',
+            'location' => '位置',
+            'maintainer' => '維護人',
+            'period' => '週期',
+            'status' => '狀態',
+            'next_due' => '下一次到期',
+            'reviewed_at' => '最近審核',
+        ],
     ],
     'buttons' => [
         'start_update' => '開始更新',

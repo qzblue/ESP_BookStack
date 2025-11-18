@@ -27,7 +27,7 @@
                    title="{{ $espMaintenanceHeader['label'] ?? trans('common.view') }}">
                     @icon('calendar')
                     @if(($espMaintenanceHeader['count'] ?? 0) > 0)
-                        <span class="tag success small ml-xs">{{ $espMaintenanceHeader['count'] }}</span>
+                        <span class="tag neg small ml-xs">{{ $espMaintenanceHeader['count'] }}</span>
                     @endif
                 </a>
             </div>

@@ -33,6 +33,21 @@
                 <div>{{ trans('preferences.my_account') }}</div>
             </a>
         </li>
+        @if(!empty($espMaintenanceMenuVisible))
+            <li>
+                <a href="{{ route('maintenance.overview') }}"
+                   role="menuitem"
+                   class="icon-item flex align-items-center gap-xxs">
+                    @icon('calendar')
+                    <div class="flex align-items-center gap-xxs">
+                        <span>{{ trans('esp::maintenance.overview.menu') }}</span>
+                        @if(($espMaintenanceHeader['count'] ?? 0) > 0)
+                            <span class="tag neg small">{{ $espMaintenanceHeader['count'] }}</span>
+                        @endif
+                    </div>
+                </a>
+            </li>
+        @endif
         <li role="presentation"><hr></li>
         <li>
             @include('common.dark-mode-toggle', ['classes' => 'icon-item', 'buttonRole' => 'menuitem'])

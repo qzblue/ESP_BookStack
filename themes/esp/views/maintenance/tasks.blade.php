@@ -37,7 +37,7 @@
                                 <td>
                                     <span class="tag outline small">{{ $service->getStatusOptions()[$task->status] ?? $task->status }}</span>
                                 </td>
-                                <td>{{ optional($task->next_due_at)->format('Y-m-d H:i') }}</td>
+                                <td>{{ $service->formatDateTime($task->next_due_at) }}</td>
                                 <td class="stack gap-xxs">
                                     @if(in_array($task->status, [\EspTheme\Logic\PageMaintenance::STATUS_DUE_SOON, \EspTheme\Logic\PageMaintenance::STATUS_OVERDUE]))
                                         <form action="{{ route('maintenance.start', ['page' => $task->page_id]) }}" method="POST" class="inline">
