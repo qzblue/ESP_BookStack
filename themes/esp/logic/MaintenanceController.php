@@ -34,10 +34,17 @@ class MaintenanceController
         $user = user();
         $this->ensureDocumentManager();
 
+        $status = $request->string('status')->toString() ?: null;
+        $maintainerId = $request->integer('maintainer') ?: null;
+
         return view('esp::maintenance.overview', [
-            'records' => $this->service->getOverviewRecords($user),
+            'records' => $this->service->getOverviewRecords($user, $status, $maintainerId),
             'service' => $this->service,
             'canAdminister' => $this->service->userCanAdminister($user),
+            'summary' => $this->service->getOverviewSummary($user),
+            'selectedStatus' => $status,
+            'selectedMaintainer' => $maintainerId,
+            'maintainers' => $this->service->getMaintainerOptions(),
         ]);
     }
 

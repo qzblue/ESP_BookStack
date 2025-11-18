@@ -74,6 +74,15 @@ return [
         'heading' => '維護總覽',
         'menu' => '維護總覽',
         'empty' => '尚無任何維護設定可供查看。',
+        'summary' => [
+            'total' => '維護頁面總數',
+            'scope' => '依據您的角色可見範圍',
+        ],
+        'filters' => [
+            'status' => '狀態',
+            'maintainer' => '維護人',
+            'apply' => '套用篩選',
+        ],
         'table' => [
             'page' => '頁面',
             'location' => '位置',
