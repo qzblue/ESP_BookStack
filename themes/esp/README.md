@@ -13,7 +13,7 @@
 ## 安裝與啟用
 
 1. 將 `themes/esp` 放入 BookStack 專案的 `themes/` 目錄中。
-2. 在 `.env` 或後台系統設定中把 `APP_THEME` 設為 `esp`，並確認 `APP_TIMEZONE=Asia/Shanghai`（以東八區時間排程及寄送提醒），確保 Logical Theme 與 Visual Theme 一併載入。
+2. 在 `.env` 或後台系統設定中把 `APP_THEME` 設為 `esp`，並確認 `APP_TIMEZONE=Asia/Shanghai`（以東八區時間排程及寄送提醒），如需與系統顯示分離可額外設定 `APP_DISPLAY_TIMEZONE=Asia/Shanghai`，確保 Logical Theme 與 Visual Theme 一併載入。
 3. 建立維護資料表（僅需執行一次）：
 
    ```bash
@@ -51,7 +51,7 @@
 - **管理員編輯頁面**：若管理員直接編輯並儲存，系統會把狀態標記為最新版本並重新計算下一次到期日，免除額外審核步驟。
 - **提醒依據**：到期檢查與通知依 `next_due_at` 計算，並使用 Page 的修訂紀錄作為內容變更依據，無須額外上傳。
 - **讀者可見版本**：當維護狀態為「審核中」時，非管理員且非維護人僅會看到最後一次審核通過（或最後一次紀錄的）修訂版本，避免未審內容直接曝光。
-- **週期重算時區一致**：週期計算、到期判斷與列表顯示皆依 `.env` 的 `APP_TIMEZONE`（預設 Asia/Shanghai）運作，確保與系統時間對齊。
+- **週期重算時區一致**：週期計算、到期判斷與列表顯示優先遵循 `.env` 的 `APP_DISPLAY_TIMEZONE`（未設時退回 `APP_TIMEZONE`，預設 Asia/Shanghai），確保與系統時間對齊。
 
 ---
 

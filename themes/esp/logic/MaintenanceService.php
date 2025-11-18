@@ -26,7 +26,7 @@ class MaintenanceService
 
     public function __construct()
     {
-        $this->timezone = config('app.timezone', 'Asia/Shanghai') ?: 'Asia/Shanghai';
+        $this->timezone = config('app.display_timezone', config('app.timezone', 'Asia/Shanghai')) ?: 'Asia/Shanghai';
         $this->pageMorphClass = (new Page())->getMorphClass();
         $this->refreshSchemaState();
     }
